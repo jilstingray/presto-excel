@@ -13,41 +13,32 @@
  */
 package org.ame.presto.excel;
 
-import com.facebook.airlift.bootstrap.LifeCycleManager;
-import com.facebook.airlift.log.Logger;
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.transaction.IsolationLevel;
+import com.google.inject.Inject;
 
-import javax.inject.Inject;
-
-import static java.util.Objects.requireNonNull;
 import static org.ame.presto.excel.ExcelTransactionHandle.INSTANCE;
 
 public class ExcelConnector
         implements Connector
 {
-    private static final Logger log = Logger.get(ExcelConnector.class);
-
-    private final LifeCycleManager lifeCycleManager;
     private final ExcelMetadata metadata;
     private final ExcelSplitManager splitManager;
     private final ExcelRecordSetProvider recordSetProvider;
 
     @Inject
     public ExcelConnector(
-            LifeCycleManager lifeCycleManager,
             ExcelMetadata metadata,
             ExcelSplitManager splitManager,
             ExcelRecordSetProvider recordSetProvider)
     {
-        this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
-        this.metadata = requireNonNull(metadata, "metadata is null");
-        this.splitManager = requireNonNull(splitManager, "splitManager is null");
-        this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.metadata = metadata;
+        this.splitManager = splitManager;
+        this.recordSetProvider = recordSetProvider;
     }
 
     @Override
@@ -72,16 +63,5 @@ public class ExcelConnector
     public ConnectorRecordSetProvider getRecordSetProvider()
     {
         return recordSetProvider;
-    }
-
-    @Override
-    public final void shutdown()
-    {
-        try {
-            lifeCycleManager.stop();
-        }
-        catch (Exception e) {
-            log.error(e, "Error shutting down connector");
-        }
     }
 }

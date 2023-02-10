@@ -25,7 +25,6 @@ import java.io.File;
 import java.util.List;
 
 import static com.facebook.presto.spi.schedule.NodeSelectionStrategy.NO_PREFERENCE;
-import static java.util.Objects.requireNonNull;
 
 public class ExcelSplit
         implements ConnectorSplit
@@ -38,20 +37,14 @@ public class ExcelSplit
             @JsonProperty("filePath") File filePath,
             @JsonProperty("address") HostAddress address)
     {
-        this.filePath = requireNonNull(filePath, "filePath is null");
-        this.address = requireNonNull(address, "address is null");
+        this.filePath = filePath;
+        this.address = address;
     }
 
     @JsonProperty
     public File getFilePath()
     {
         return filePath;
-    }
-
-    @JsonProperty
-    public HostAddress getAddress()
-    {
-        return address;
     }
 
     @Override

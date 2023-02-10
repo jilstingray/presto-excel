@@ -15,26 +15,22 @@ package org.ame.presto.excel;
 
 import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.SchemaTableName;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.Objects;
-
-import static java.util.Objects.requireNonNull;
 
 public class ExcelTableHandle
         implements ConnectorTableHandle
 {
     private final String schemaName;
     private final String tableName;
-    private final SchemaTableName schemaTableName;
 
+    @JsonCreator
     public ExcelTableHandle(
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName)
     {
-        this.schemaName = requireNonNull(schemaName, "schemaName is null");
-        this.tableName = requireNonNull(tableName, "tableName is null");
-        this.schemaTableName = new SchemaTableName(schemaName, tableName);
+        this.schemaName = schemaName;
+        this.tableName = tableName;
     }
 
     @JsonProperty
@@ -51,31 +47,6 @@ public class ExcelTableHandle
 
     public SchemaTableName toSchemaTableName()
     {
-        return this.schemaTableName;
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(schemaTableName);
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (this == obj) {
-            return true;
-        }
-        if ((obj == null) || (getClass() != obj.getClass())) {
-            return false;
-        }
-        ExcelTableHandle other = (ExcelTableHandle) obj;
-        return Objects.equals(this.schemaTableName, other.schemaTableName);
-    }
-
-    @Override
-    public String toString()
-    {
-        return schemaTableName.toString();
+        return new SchemaTableName(schemaName, tableName);
     }
 }

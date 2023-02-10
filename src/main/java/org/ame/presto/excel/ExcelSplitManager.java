@@ -21,12 +21,9 @@ import com.facebook.presto.spi.NodeManager;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.google.common.collect.ImmutableList;
-
-import javax.inject.Inject;
+import com.google.inject.Inject;
 
 import java.nio.file.Path;
-
-import static java.util.Objects.requireNonNull;
 
 public class ExcelSplitManager
         implements ConnectorSplitManager
@@ -37,8 +34,8 @@ public class ExcelSplitManager
     @Inject
     public ExcelSplitManager(NodeManager nodeManager, ExcelConfig config)
     {
-        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
-        this.config = requireNonNull(config, "config is null");
+        this.nodeManager = nodeManager;
+        this.config = config;
     }
 
     @Override

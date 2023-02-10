@@ -17,6 +17,7 @@ import com.facebook.presto.common.type.Type;
 import com.facebook.presto.common.type.VarcharType;
 import com.facebook.presto.spi.RecordCursor;
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
@@ -38,22 +39,24 @@ public class ExcelRecordCursor
     private final File file;
     private List<String> fields;
     private Workbook workbook;
-    private Iterator<Row> rows;
-    private Row currentRow;
+    private Sheet sheet;
+    private Iterator<Row> iterator;
+    private boolean hasNext;
     private static final DataFormatter DATA_FORMATTER = new DataFormatter();
 
     public ExcelRecordCursor(File file)
     {
         this.file = file;
         this.workbook = null;
-        this.rows = null;
-        this.currentRow = null;
+        this.sheet = null;
+        this.iterator = null;
+        this.hasNext = false;
     }
 
     @Override
     public long getCompletedBytes()
     {
-        return file.length() * 1024;
+        return 0;
     }
 
     @Override
@@ -71,25 +74,28 @@ public class ExcelRecordCursor
     @Override
     public boolean advanceNextPosition()
     {
-        if (workbook == null) {
+        if (sheet == null) {
             try {
                 fields = new ArrayList<>();
                 InputStream inputStream = new FileInputStream(file);
                 workbook = WorkbookFactory.create(inputStream);
                 // TODO: support multiple sheets
-                Sheet sheet = workbook.getSheetAt(0);
-                rows = sheet.iterator();
+                sheet = workbook.getSheetAt(0);
+                iterator = sheet.rowIterator();
                 // skip header
-                currentRow = rows.next();
+                iterator.next();
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
         try {
-            if (rows.hasNext()) {
-                currentRow = rows.next();
-                for (Cell cell : currentRow) {
+            // TODO: skip empty rows in the middle
+            hasNext = iterator.hasNext();
+            if (hasNext) {
+                Row row = iterator.next();
+                fields = new ArrayList<>();
+                for (Cell cell : row) {
                     fields.add(DATA_FORMATTER.formatCellValue(cell));
                 }
             }
@@ -97,7 +103,7 @@ public class ExcelRecordCursor
         catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return currentRow != null;
+        return hasNext;
     }
 
     @Override
@@ -121,7 +127,7 @@ public class ExcelRecordCursor
     @Override
     public Slice getSlice(int field)
     {
-        return null;
+        return Slices.utf8Slice(fields.get(field));
     }
 
     @Override
@@ -141,6 +147,8 @@ public class ExcelRecordCursor
     {
         if (workbook != null) {
             try {
+                sheet = null;
+                iterator = null;
                 workbook.close();
             }
             catch (IOException e) {

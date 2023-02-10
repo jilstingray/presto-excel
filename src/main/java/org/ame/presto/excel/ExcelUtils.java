@@ -15,30 +15,25 @@ package org.ame.presto.excel;
 
 import com.facebook.presto.common.type.Type;
 import com.facebook.presto.common.type.VarcharType;
-import com.google.common.base.Splitter;
+import com.google.inject.Inject;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-
-import javax.inject.Inject;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.util.Objects.requireNonNull;
-
-public class ExcelTableColumnUtils
+public class ExcelUtils
 {
-    private static ExcelConfig config;
-    private static final Splitter LINE_SPLITTER = Splitter.on(",").trimResults();
+    private ExcelConfig config;
 
     @Inject
-    private ExcelTableColumnUtils(ExcelConfig config)
+    private ExcelUtils(ExcelConfig config)
     {
-        this.config = requireNonNull(config, "config is null");
+        this.config = config;
     }
 
     public static List<Type> tableColumnTypes(Path path)
@@ -46,7 +41,7 @@ public class ExcelTableColumnUtils
         return tableColumns(path).stream().map(type -> VarcharType.VARCHAR).collect(Collectors.toList());
     }
 
-    public static List<String> tableColumns(String schemaName, String tableName)
+    public List<String> tableColumns(String schemaName, String tableName)
     {
         Path filePath = config.getBaseDir().toPath().resolve(schemaName).resolve(tableName + ".xlsx");
         return tableColumns(filePath);
@@ -55,10 +50,10 @@ public class ExcelTableColumnUtils
     public static List<String> tableColumns(Path path)
     {
         try {
-            List<String> columns = new ArrayList<>();
             Workbook workbook = WorkbookFactory.create(path.toFile());
             Sheet sheet = workbook.getSheetAt(0);
             Row row = sheet.getRow(0);
+            List<String> columns = new ArrayList<>();
             for (int i = 0; i < row.getLastCellNum(); i++) {
                 columns.add(row.getCell(i).getStringCellValue());
             }

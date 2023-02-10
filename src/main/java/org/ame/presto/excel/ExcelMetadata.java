@@ -13,7 +13,6 @@
  */
 package org.ame.presto.excel;
 
-import com.facebook.airlift.log.Logger;
 import com.facebook.presto.common.type.VarcharType;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
@@ -29,8 +28,7 @@ import com.facebook.presto.spi.SchemaTablePrefix;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-
-import javax.inject.Inject;
+import com.google.inject.Inject;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -46,10 +44,10 @@ public class ExcelMetadata
         implements ConnectorMetadata
 {
     private ExcelConfig config;
-    private ExcelTableColumnUtils utils;
+    private ExcelUtils utils;
 
     @Inject
-    public ExcelMetadata(ExcelConfig config, ExcelTableColumnUtils utils)
+    public ExcelMetadata(ExcelConfig config, ExcelUtils utils)
     {
         this.config = config;
         this.utils = utils;

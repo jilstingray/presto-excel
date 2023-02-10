@@ -33,7 +33,7 @@ public class ExcelRecordSet
     @Override
     public List<Type> getColumnTypes()
     {
-        return ExcelTableColumnUtils.tableColumnTypes(file.toPath());
+        return ExcelUtils.tableColumnTypes(file.toPath());
     }
 
     @Override

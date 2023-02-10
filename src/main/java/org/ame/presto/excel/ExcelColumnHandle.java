@@ -15,13 +15,8 @@ package org.ame.presto.excel;
 
 import com.facebook.presto.common.type.Type;
 import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ColumnMetadata;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.Objects;
-
-import static com.google.common.base.MoreObjects.toStringHelper;
-import static java.util.Objects.requireNonNull;
 
 public class ExcelColumnHandle
         implements ColumnHandle
@@ -30,13 +25,14 @@ public class ExcelColumnHandle
     private final Type columnType;
     private final int ordinalPosition;
 
+    @JsonCreator
     public ExcelColumnHandle(
             @JsonProperty("columnName") String columnName,
             @JsonProperty("columnType") Type columnType,
             @JsonProperty("ordinalPosition") int ordinalPosition)
     {
-        this.columnName = requireNonNull(columnName, "columnName is null");
-        this.columnType = requireNonNull(columnType, "columnType is null");
+        this.columnName = columnName;
+        this.columnType = columnType;
         this.ordinalPosition = ordinalPosition;
     }
 
@@ -56,39 +52,5 @@ public class ExcelColumnHandle
     public int getOrdinalPosition()
     {
         return ordinalPosition;
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(columnName, columnType, ordinalPosition);
-    }
-
-    @Override
-    public boolean equals(Object obj)
-    {
-        if (this == obj) {
-            return true;
-        }
-        if ((obj == null) || (getClass() != obj.getClass())) {
-            return false;
-        }
-        ExcelColumnHandle other = (ExcelColumnHandle) obj;
-        return Objects.equals(this.columnName, other.columnName);
-    }
-
-    @Override
-    public String toString()
-    {
-        return toStringHelper(this)
-                .add("columnName", columnName)
-                .add("columnType", columnType)
-                .add("ordinalPosition", ordinalPosition)
-                .toString();
-    }
-
-    public ColumnMetadata getColumnMetadata()
-    {
-        return new ColumnMetadata(columnName, columnType);
     }
 }
