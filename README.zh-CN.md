@@ -4,7 +4,7 @@ Presto 本地 Excel 连接器，参考了 [presto-localcsv](https://github.com/d
 
 目前只支持查询 Excel 2007+ 格式（*.xlsx）的单个工作表。
 
-## 编译
+## 编译 & 构建
 
 *（待补充）*
 
@@ -23,7 +23,9 @@ excel.base=/data/exceldb
 
 - [ ] 自动转换特殊数据类型 (e.g. date, time, datetime)
 
-- [ ] 支持旧的Excel格式（*.xls）
+- [ ] 支持旧的 Excel 格式（*.xls）
+
+- [ ] 支持完整的 Excel 操作（e.g. create table, insert, delete, update）
 
 - [ ] 合并为支持多种文件格式的单一连接器
 

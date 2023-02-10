@@ -27,6 +27,8 @@ Currently, the connector only supports Excel 2007+ format (*.xlsx) with a single
 
 - [ ] Support old Excel format (*.xls)
 
+- [ ] Support full Excel manipulation (e.g. create table, insert, delete, update)
+
 - [ ] Merge with presto-localcsv into a single connector supporting multiple file formats
 
 
