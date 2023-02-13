@@ -18,11 +18,14 @@ import com.facebook.presto.spi.SchemaTableName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
 public class ExcelTableHandle
         implements ConnectorTableHandle
 {
     private final String schemaName;
     private final String tableName;
+    private final SchemaTableName schemaTableName;
 
     @JsonCreator
     public ExcelTableHandle(
@@ -31,6 +34,7 @@ public class ExcelTableHandle
     {
         this.schemaName = schemaName;
         this.tableName = tableName;
+        this.schemaTableName = new SchemaTableName(schemaName, tableName);
     }
 
     @JsonProperty
@@ -45,8 +49,39 @@ public class ExcelTableHandle
         return tableName;
     }
 
+    public SchemaTableName getSchemaTableName()
+    {
+        return schemaTableName;
+    }
+
     public SchemaTableName toSchemaTableName()
     {
         return new SchemaTableName(schemaName, tableName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(schemaName, tableName);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        ExcelTableHandle that = (ExcelTableHandle) o;
+        return Objects.equals(this.schemaTableName, that.schemaTableName);
+    }
+
+    @Override
+    public String toString()
+    {
+        return schemaTableName.toString();
     }
 }

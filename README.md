@@ -19,17 +19,15 @@ excel.base=/data/exceldb
 
 `excel.base` sets the root directory, schema name is the second level directory, and table name is the Excel file name without suffix.
 
-Currently, the connector only supports Excel 2007+ format (*.xlsx) with a single sheet.
-
 ## TODO
-
-- [ ] Auto conversion of special data types (e.g. date, time, datetime)
 
 - [ ] Support old Excel format (*.xls)
 
+- [ ] Auto conversion of special data types (e.g. date, time, datetime)
+
 - [ ] Support full Excel manipulation (e.g. create table, insert, delete, update)
 
-- [ ] Merge with presto-localcsv into a single connector supporting multiple file formats
+- [ ] Merge with `presto-localcsv` into a single connector supporting multiple file formats
 
 
 

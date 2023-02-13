@@ -29,7 +29,6 @@ public class ExcelModule
         binder.bind(ExcelMetadata.class).in(Scopes.SINGLETON);
         binder.bind(ExcelSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(ExcelRecordSetProvider.class).in(Scopes.SINGLETON);
-        binder.bind(ExcelUtils.class).in(Scopes.SINGLETON);
         binder.bind(ExcelHandleResolver.class).in(Scopes.SINGLETON);
 
         configBinder(binder).bindConfig(ExcelConfig.class);

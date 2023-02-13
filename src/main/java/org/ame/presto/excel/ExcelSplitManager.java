@@ -28,8 +28,8 @@ import java.nio.file.Path;
 public class ExcelSplitManager
         implements ConnectorSplitManager
 {
-    private NodeManager nodeManager;
-    private ExcelConfig config;
+    private final NodeManager nodeManager;
+    private final ExcelConfig config;
 
     @Inject
     public ExcelSplitManager(NodeManager nodeManager, ExcelConfig config)

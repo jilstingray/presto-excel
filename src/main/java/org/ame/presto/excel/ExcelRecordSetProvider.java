@@ -21,14 +21,17 @@ import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ExcelRecordSetProvider
         implements ConnectorRecordSetProvider
 {
+    // TODO: FIX THIS
     @Override
     public RecordSet getRecordSet(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorSplit split, List<? extends ColumnHandle> columns)
     {
         ExcelSplit excelSplit = (ExcelSplit) split;
-        return new ExcelRecordSet(excelSplit.getFilePath());
+        List<ExcelColumnHandle> handles = columns.stream().map(c -> (ExcelColumnHandle) c).collect(Collectors.toList());
+        return new ExcelRecordSet(excelSplit.getFilePath(), handles);
     }
 }

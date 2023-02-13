@@ -21,9 +21,9 @@ excel.base=/data/exceldb
 
 ## TODO
 
-- [ ] 自动转换特殊数据类型 (e.g. date, time, datetime)
-
 - [ ] 支持旧的 Excel 格式（*.xls）
+
+- [ ] 自动转换特殊数据类型 (e.g. date, time, datetime)
 
 - [ ] 支持完整的 Excel 操作（e.g. create table, insert, delete, update）
 

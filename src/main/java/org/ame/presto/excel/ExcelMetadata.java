@@ -13,6 +13,7 @@
  */
 package org.ame.presto.excel;
 
+import com.facebook.presto.common.type.Type;
 import com.facebook.presto.common.type.VarcharType;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
@@ -29,28 +30,33 @@ import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+
 public class ExcelMetadata
         implements ConnectorMetadata
 {
     private ExcelConfig config;
-    private ExcelUtils utils;
 
     @Inject
-    public ExcelMetadata(ExcelConfig config, ExcelUtils utils)
+    public ExcelMetadata(ExcelConfig config)
     {
         this.config = config;
-        this.utils = utils;
     }
 
     @Override
@@ -99,11 +105,12 @@ public class ExcelMetadata
     public ConnectorTableMetadata getTableMetadata(ConnectorSession session, ConnectorTableHandle table)
     {
         ExcelTableHandle excelTableHandle = (ExcelTableHandle) table;
-        List<String> columns = utils.tableColumns(excelTableHandle.getSchemaName(), excelTableHandle.getTableName());
-        List<ColumnMetadata> metadata = columns.stream()
-                .map(column -> new ColumnMetadata(column, VarcharType.VARCHAR))
-                .collect(Collectors.toList());
-        return new ConnectorTableMetadata(excelTableHandle.toSchemaTableName(), metadata);
+        List<String> columns = getColumns(excelTableHandle.getSchemaName(), excelTableHandle.getTableName());
+        ImmutableList.Builder<ColumnMetadata> metadataBuilder = ImmutableList.builder();
+        for (String column : columns) {
+            metadataBuilder.add(new ColumnMetadata(column, VarcharType.VARCHAR));
+        }
+        return new ConnectorTableMetadata(excelTableHandle.toSchemaTableName(), metadataBuilder.build());
     }
 
     @Override
@@ -127,13 +134,14 @@ public class ExcelMetadata
     @Override
     public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        ImmutableMap.Builder<String, ColumnHandle> builder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
         ExcelTableHandle handle = (ExcelTableHandle) tableHandle;
-        List<String> columns = utils.tableColumns(handle.getSchemaName(), handle.getTableName());
+        List<String> columns = getColumns(handle.getSchemaName(), handle.getTableName());
         for (int i = 0; i < columns.size(); i++) {
-            builder.put(columns.get(i), new ExcelColumnHandle(columns.get(i), VarcharType.VARCHAR, i));
+            // TODO: support other types
+            columnHandles.put(columns.get(i), new ExcelColumnHandle(columns.get(i), VarcharType.VARCHAR, i));
         }
-        return builder.build();
+        return columnHandles.build();
     }
 
     @Override
@@ -153,15 +161,15 @@ public class ExcelMetadata
         else {
             list.addAll(listTables(prefix.getSchemaName()));
         }
-        ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> builder = ImmutableMap.builder();
+        ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> columns = ImmutableMap.builder();
         for (SchemaTableName schemaTableName : list) {
-            List<String> columns = utils.tableColumns(schemaTableName.getSchemaName(), schemaTableName.getTableName());
-            List<ColumnMetadata> metadata = columns.stream()
+            List<ColumnMetadata> metadata = getColumns(schemaTableName.getSchemaName(), schemaTableName.getTableName())
+                    .stream()
                     .map(column -> new ColumnMetadata(column, VarcharType.VARCHAR))
                     .collect(Collectors.toList());
-            builder.put(schemaTableName, metadata);
+            columns.put(schemaTableName, metadata);
         }
-        return builder.build();
+        return columns.build();
     }
 
     private List<SchemaTableName> listTables(String schemaName)
@@ -170,9 +178,37 @@ public class ExcelMetadata
             return Files.list(config.getBaseDir().toPath().resolve(schemaName))
                     .map(path -> path.getFileName().toString().replaceAll("\\.xlsx$", ""))
                     .map(tableName -> new SchemaTableName(schemaName, tableName))
-                    .collect(Collectors.toList());
+                    .collect(toImmutableList());
         }
         catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static List<Type> getColumnTypes(Path path)
+    {
+        return getColumns(path).stream().map(type -> VarcharType.VARCHAR).collect(Collectors.toList());
+    }
+
+    private List<String> getColumns(String schemaName, String tableName)
+    {
+        Path filePath = config.getBaseDir().toPath().resolve(schemaName).resolve(tableName + ".xlsx");
+        return getColumns(filePath);
+    }
+
+    private static List<String> getColumns(Path path)
+    {
+        try {
+            Workbook workbook = WorkbookFactory.create(path.toFile());
+            Sheet sheet = workbook.getSheetAt(0);
+            Row row = sheet.getRow(0);
+            List<String> columns = new ArrayList<>();
+            for (int i = 0; i < row.getLastCellNum(); i++) {
+                columns.add(row.getCell(i).getStringCellValue().toLowerCase(Locale.ENGLISH));
+            }
+            return ImmutableList.copyOf(columns);
+        }
+        catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

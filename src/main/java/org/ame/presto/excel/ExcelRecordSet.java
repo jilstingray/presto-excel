@@ -23,22 +23,25 @@ import java.util.List;
 public class ExcelRecordSet
         implements RecordSet
 {
+    private final List<ExcelColumnHandle> columnHandles;
     private File file;
 
-    public ExcelRecordSet(File file)
+    public ExcelRecordSet(File file, List<ExcelColumnHandle> columnHandles)
     {
+        this.columnHandles = columnHandles;
         this.file = file;
     }
 
     @Override
     public List<Type> getColumnTypes()
     {
-        return ExcelUtils.tableColumnTypes(file.toPath());
+        return ExcelMetadata.getColumnTypes(file.toPath());
     }
 
+    // TODO: cursor needs a ColumnHandle
     @Override
     public RecordCursor cursor()
     {
-        return new ExcelRecordCursor(file);
+        return new ExcelRecordCursor(file, columnHandles);
     }
 }

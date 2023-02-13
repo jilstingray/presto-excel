@@ -18,6 +18,10 @@ import com.facebook.presto.spi.ColumnHandle;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
+import static com.google.common.base.MoreObjects.toStringHelper;
+
 public class ExcelColumnHandle
         implements ColumnHandle
 {
@@ -52,5 +56,35 @@ public class ExcelColumnHandle
     public int getOrdinalPosition()
     {
         return ordinalPosition;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(columnName, columnType, ordinalPosition);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        ExcelColumnHandle that = (ExcelColumnHandle) o;
+        return Objects.equals(this.columnName, that.columnName);
+    }
+
+    @Override
+    public String toString()
+    {
+        return toStringHelper(this)
+                .add("columnName", columnName)
+                .add("columnType", columnType)
+                .add("ordinalPosition", ordinalPosition)
+                .toString();
     }
 }

@@ -18,7 +18,6 @@ import com.facebook.presto.common.type.VarcharType;
 import com.facebook.presto.spi.RecordCursor;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -37,6 +36,7 @@ public class ExcelRecordCursor
         implements RecordCursor
 {
     private final File file;
+    private final List<ExcelColumnHandle> columnHandles;
     private List<String> fields;
     private Workbook workbook;
     private Sheet sheet;
@@ -44,9 +44,10 @@ public class ExcelRecordCursor
     private boolean hasNext;
     private static final DataFormatter DATA_FORMATTER = new DataFormatter();
 
-    public ExcelRecordCursor(File file)
+    public ExcelRecordCursor(File file, List<ExcelColumnHandle> columnHandles)
     {
         this.file = file;
+        this.columnHandles = columnHandles;
         this.workbook = null;
         this.sheet = null;
         this.iterator = null;
@@ -76,6 +77,7 @@ public class ExcelRecordCursor
     {
         if (sheet == null) {
             try {
+                // Populate incomplete columns with nulls
                 fields = new ArrayList<>();
                 InputStream inputStream = new FileInputStream(file);
                 workbook = WorkbookFactory.create(inputStream);
@@ -95,8 +97,9 @@ public class ExcelRecordCursor
             if (hasNext) {
                 Row row = iterator.next();
                 fields = new ArrayList<>();
-                for (Cell cell : row) {
-                    fields.add(DATA_FORMATTER.formatCellValue(cell));
+                for (int i = 0; i < columnHandles.size(); i++) {
+                    int position = columnHandles.get(i).getOrdinalPosition();
+                    fields.add(DATA_FORMATTER.formatCellValue(row.getCell(position)));
                 }
             }
         }
