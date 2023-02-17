@@ -13,8 +13,6 @@
  */
 package org.ame.presto.excel;
 
-import com.facebook.presto.common.type.Type;
-import com.facebook.presto.common.type.VarcharType;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorSession;
@@ -26,44 +24,40 @@ import com.facebook.presto.spi.ConnectorTableMetadata;
 import com.facebook.presto.spi.Constraint;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.SchemaTablePrefix;
+import com.facebook.presto.spi.TableNotFoundException;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
 public class ExcelMetadata
         implements ConnectorMetadata
 {
-    private ExcelConfig config;
+    private final ExcelClient excelClient;
 
     @Inject
-    public ExcelMetadata(ExcelConfig config)
+    public ExcelMetadata(ExcelClient excelClient, ExcelConfig config)
     {
-        this.config = config;
+        this.excelClient = excelClient;
     }
 
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
         try {
-            return Files.list(config.getBaseDir().toPath())
+            return Files.list(excelClient.getConfig().getBaseDir().toPath())
                     .filter(Files::isDirectory)
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toList());
@@ -76,19 +70,24 @@ public class ExcelMetadata
     @Override
     public ExcelTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName)
     {
-        Path tablePath = config.getBaseDir().toPath().resolve(tableName.getSchemaName());
-        if (!Files.exists(tablePath) || !Files.isDirectory(tablePath)) {
+        requireNonNull(tableName, "tableName is null");
+        Path dir = excelClient.getConfig().getBaseDir().toPath().resolve(tableName.getSchemaName());
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
             return null;
         }
-        Path filePath = tablePath.resolve(tableName.getTableName() + ".xlsx");
-        if (!Files.exists(filePath)) {
+        Path file = dir.resolve(tableName.getTableName() + ".xlsx");
+        if (!Files.exists(file)) {
             return null;
         }
         return new ExcelTableHandle(tableName.getSchemaName(), tableName.getTableName());
     }
 
     @Override
-    public List<ConnectorTableLayoutResult> getTableLayouts(ConnectorSession session, ConnectorTableHandle table, Constraint<ColumnHandle> constraint, Optional<Set<ColumnHandle>> desiredColumns)
+    public List<ConnectorTableLayoutResult> getTableLayouts(
+            ConnectorSession session,
+            ConnectorTableHandle table,
+            Constraint<ColumnHandle> constraint,
+            Optional<Set<ColumnHandle>> desiredColumns)
     {
         ExcelTableHandle tableHandle = (ExcelTableHandle) table;
         ConnectorTableLayout layout = new ConnectorTableLayout(new ExcelTableLayoutHandle(tableHandle));
@@ -104,13 +103,60 @@ public class ExcelMetadata
     @Override
     public ConnectorTableMetadata getTableMetadata(ConnectorSession session, ConnectorTableHandle table)
     {
-        ExcelTableHandle excelTableHandle = (ExcelTableHandle) table;
-        List<String> columns = getColumns(excelTableHandle.getSchemaName(), excelTableHandle.getTableName());
-        ImmutableList.Builder<ColumnMetadata> metadataBuilder = ImmutableList.builder();
-        for (String column : columns) {
-            metadataBuilder.add(new ColumnMetadata(column, VarcharType.VARCHAR));
+        Optional<ConnectorTableMetadata> connectorTableMetadata = getTableMetadata(session, ((ExcelTableHandle) table).getSchemaTableName());
+        if (!connectorTableMetadata.isPresent()) {
+            throw new RuntimeException("Table not found: " + table);
         }
-        return new ConnectorTableMetadata(excelTableHandle.toSchemaTableName(), metadataBuilder.build());
+        return connectorTableMetadata.get();
+    }
+
+    private Optional<ConnectorTableMetadata> getTableMetadata(ConnectorSession session, SchemaTableName schemaTableName)
+    {
+        if (!listSchemaNames(session).contains(schemaTableName.getSchemaName())) {
+            return Optional.empty();
+        }
+        Optional<ExcelTable> table = excelClient.getTable(schemaTableName.getSchemaName(), schemaTableName.getTableName());
+        if (table.isPresent()) {
+            return Optional.of(new ConnectorTableMetadata(schemaTableName, table.get().getColumnsMetadata()));
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        ExcelTableHandle excelTableHandle = (ExcelTableHandle) tableHandle;
+        Optional<ExcelTable> table = excelClient.getTable(excelTableHandle.getSchemaName(), excelTableHandle.getTableName());
+        if (!table.isPresent()) {
+            throw new TableNotFoundException(excelTableHandle.getSchemaTableName());
+        }
+        ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
+        int i = 0;
+        for (ColumnMetadata column : table.get().getColumnsMetadata()) {
+            columnHandles.put(column.getName(), new ExcelColumnHandle(column.getName(), column.getType(), i++));
+        }
+        return columnHandles.build();
+    }
+
+    @Override
+    public ColumnMetadata getColumnMetadata(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
+    {
+        return ((ExcelColumnHandle) columnHandle).getColumnMetadata();
+    }
+
+    @Override
+    public Map<SchemaTableName, List<ColumnMetadata>> listTableColumns(ConnectorSession session, SchemaTablePrefix prefix)
+    {
+        requireNonNull(prefix, "prefix is null");
+        ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> columns = ImmutableMap.builder();
+        for (SchemaTableName tableName : listTables(session, Optional.of(prefix.getSchemaName()))) {
+            Optional<ConnectorTableMetadata> tableMetadata = getTableMetadata(session, tableName);
+            // table can disappear during listing operation
+            if (tableMetadata.isPresent()) {
+                columns.put(tableName, tableMetadata.get().getColumns());
+            }
+        }
+        return columns.build();
     }
 
     @Override
@@ -131,84 +177,15 @@ public class ExcelMetadata
         return tableListBuilder.build();
     }
 
-    @Override
-    public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
-        ExcelTableHandle handle = (ExcelTableHandle) tableHandle;
-        List<String> columns = getColumns(handle.getSchemaName(), handle.getTableName());
-        for (int i = 0; i < columns.size(); i++) {
-            // TODO: support other types
-            columnHandles.put(columns.get(i), new ExcelColumnHandle(columns.get(i), VarcharType.VARCHAR, i));
-        }
-        return columnHandles.build();
-    }
-
-    @Override
-    public ColumnMetadata getColumnMetadata(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
-    {
-        ExcelColumnHandle handle = (ExcelColumnHandle) columnHandle;
-        return new ColumnMetadata(handle.getColumnName(), handle.getColumnType());
-    }
-
-    @Override
-    public Map<SchemaTableName, List<ColumnMetadata>> listTableColumns(ConnectorSession session, SchemaTablePrefix prefix)
-    {
-        List<SchemaTableName> list = new ArrayList<>();
-        if (prefix.getTableName() != null) {
-            list.add(new SchemaTableName(prefix.getSchemaName(), prefix.getTableName()));
-        }
-        else {
-            list.addAll(listTables(prefix.getSchemaName()));
-        }
-        ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> columns = ImmutableMap.builder();
-        for (SchemaTableName schemaTableName : list) {
-            List<ColumnMetadata> metadata = getColumns(schemaTableName.getSchemaName(), schemaTableName.getTableName())
-                    .stream()
-                    .map(column -> new ColumnMetadata(column, VarcharType.VARCHAR))
-                    .collect(Collectors.toList());
-            columns.put(schemaTableName, metadata);
-        }
-        return columns.build();
-    }
-
     private List<SchemaTableName> listTables(String schemaName)
     {
         try {
-            return Files.list(config.getBaseDir().toPath().resolve(schemaName))
+            return Files.list(excelClient.getConfig().getBaseDir().toPath().resolve(schemaName))
                     .map(path -> path.getFileName().toString().replaceAll("\\.xlsx$", ""))
                     .map(tableName -> new SchemaTableName(schemaName, tableName))
                     .collect(toImmutableList());
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static List<Type> getColumnTypes(Path path)
-    {
-        return getColumns(path).stream().map(type -> VarcharType.VARCHAR).collect(Collectors.toList());
-    }
-
-    private List<String> getColumns(String schemaName, String tableName)
-    {
-        Path filePath = config.getBaseDir().toPath().resolve(schemaName).resolve(tableName + ".xlsx");
-        return getColumns(filePath);
-    }
-
-    private static List<String> getColumns(Path path)
-    {
-        try {
-            Workbook workbook = WorkbookFactory.create(path.toFile());
-            Sheet sheet = workbook.getSheetAt(0);
-            Row row = sheet.getRow(0);
-            List<String> columns = new ArrayList<>();
-            for (int i = 0; i < row.getLastCellNum(); i++) {
-                columns.add(row.getCell(i).getStringCellValue().toLowerCase(Locale.ENGLISH));
-            }
-            return ImmutableList.copyOf(columns);
-        }
-        catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

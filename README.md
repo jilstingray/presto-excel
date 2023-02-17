@@ -1,12 +1,12 @@
 # Presto Excel Connector 
 
-Based on [presto-localcsv](https://github.com/dongqianwei/presto-localcsv), this connector allows Presto to query data stored in local Excel files.
+Based on [presto-localcsv](https://github.com/dongqianwei/presto-localcsv) and [presto-google-sheets](https://github.com/prestodb/presto/tree/master/presto-google-sheets), this connector allows Presto to query data stored in local Excel files.
 
-Currently, the connector only supports Excel 2007+ format (*.xlsx) with a single sheet.
+Currently, the connector supports `select` on Excel 2007+ format files (*.xlsx).
 
 ## Build
 
-*(WIP)*
+* (to be added) *
 
 ## Configuration
 
@@ -23,11 +23,13 @@ excel.base=/data/exceldb
 
 - [ ] Support old Excel format (*.xls)
 
+- [ ] Support multiple sheets
+
 - [ ] Auto conversion of special data types (e.g. date, time, datetime)
 
 - [ ] Support full Excel manipulation (e.g. create table, insert, delete, update)
 
-- [ ] Merge with `presto-localcsv` into a single connector supporting multiple file formats
+- [ ] Support more file formats (not just Excel)
 
 
 

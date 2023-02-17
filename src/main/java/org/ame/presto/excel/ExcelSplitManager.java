@@ -14,28 +14,29 @@
 package org.ame.presto.excel;
 
 import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorSplitSource;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
 import com.facebook.presto.spi.FixedSplitSource;
-import com.facebook.presto.spi.NodeManager;
+import com.facebook.presto.spi.TableNotFoundException;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 
-import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 public class ExcelSplitManager
         implements ConnectorSplitManager
 {
-    private final NodeManager nodeManager;
-    private final ExcelConfig config;
+    private final ExcelClient excelClient;
 
     @Inject
-    public ExcelSplitManager(NodeManager nodeManager, ExcelConfig config)
+    public ExcelSplitManager(ExcelClient excelClient)
     {
-        this.nodeManager = nodeManager;
-        this.config = config;
+        this.excelClient = excelClient;
     }
 
     @Override
@@ -46,8 +47,16 @@ public class ExcelSplitManager
             SplitSchedulingContext splitSchedulingContext)
     {
         ExcelTableHandle tableHandle = ((ExcelTableLayoutHandle) layout).getTableHandle();
-        Path filePath = config.getBaseDir().toPath().resolve(tableHandle.getSchemaName()).resolve(tableHandle.getTableName() + ".xlsx");
-        ExcelSplit split = new ExcelSplit(filePath.toFile(), nodeManager.getCurrentNode().getHostAndPort());
-        return new FixedSplitSource(ImmutableList.of(split));
+        Optional<ExcelTable> table = excelClient.getTable(tableHandle.getSchemaName(), tableHandle.getTableName());
+
+        // this can happen if table is removed during a query
+        if (!table.isPresent()) {
+            throw new TableNotFoundException(tableHandle.getSchemaTableName());
+        }
+
+        List<ConnectorSplit> splits = new ArrayList<>();
+        splits.add(new ExcelSplit(tableHandle.getSchemaName(), tableHandle.getTableName(), table.get().getValues()));
+        Collections.shuffle(splits);
+        return new FixedSplitSource(splits);
     }
 }

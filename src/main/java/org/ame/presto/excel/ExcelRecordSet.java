@@ -17,31 +17,34 @@ import com.facebook.presto.common.type.Type;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordSet;
 
-import java.io.File;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static java.util.Objects.requireNonNull;
 
 public class ExcelRecordSet
         implements RecordSet
 {
     private final List<ExcelColumnHandle> columnHandles;
-    private File file;
+    private final List<Type> columnTypes;
+    private final List<List<Object>> values;
 
-    public ExcelRecordSet(File file, List<ExcelColumnHandle> columnHandles)
+    public ExcelRecordSet(ExcelSplit excelSplit, List<ExcelColumnHandle> columnHandles)
     {
-        this.columnHandles = columnHandles;
-        this.file = file;
+        this.columnHandles = requireNonNull(columnHandles, "columnHandles is null");
+        this.values = excelSplit.getValues();
+        this.columnTypes = columnHandles.stream().map(ExcelColumnHandle::getColumnType).collect(Collectors.toList());
     }
 
     @Override
     public List<Type> getColumnTypes()
     {
-        return ExcelMetadata.getColumnTypes(file.toPath());
+        return columnTypes;
     }
 
-    // TODO: cursor needs a ColumnHandle
     @Override
     public RecordCursor cursor()
     {
-        return new ExcelRecordCursor(file, columnHandles);
+        return new ExcelRecordCursor(columnHandles, values);
     }
 }

@@ -15,6 +15,7 @@ package org.ame.presto.excel;
 
 import com.facebook.presto.common.type.Type;
 import com.facebook.presto.spi.ColumnHandle;
+import com.facebook.presto.spi.ColumnMetadata;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -56,6 +57,11 @@ public class ExcelColumnHandle
     public int getOrdinalPosition()
     {
         return ordinalPosition;
+    }
+
+    public ColumnMetadata getColumnMetadata()
+    {
+        return new ColumnMetadata(columnName, columnType);
     }
 
     @Override

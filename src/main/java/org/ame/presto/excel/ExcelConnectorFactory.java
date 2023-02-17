@@ -14,8 +14,8 @@
 package org.ame.presto.excel;
 
 import com.facebook.airlift.bootstrap.Bootstrap;
+import com.facebook.airlift.json.JsonModule;
 import com.facebook.presto.spi.ConnectorHandleResolver;
-import com.facebook.presto.spi.NodeManager;
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorContext;
 import com.facebook.presto.spi.connector.ConnectorFactory;
@@ -42,17 +42,17 @@ public class ExcelConnectorFactory
     }
 
     @Override
-    public Connector create(String catalogName, Map<String, String> requiredConfig, ConnectorContext context)
+    public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
-        requireNonNull(requiredConfig, "requiredConfig is null");
+        requireNonNull(config, "config is null");
         try {
             Bootstrap app = new Bootstrap(
-                    binder -> binder.bind(NodeManager.class).toInstance(context.getNodeManager()),
-                    new ExcelModule());
+                    new JsonModule(),
+                    new ExcelModule(context.getTypeManager()));
 
             Injector injector = app
                     .doNotInitializeLogging()
-                    .setRequiredConfigurationProperties(requiredConfig)
+                    .setRequiredConfigurationProperties(config)
                     .initialize();
 
             return injector.getInstance(ExcelConnector.class);

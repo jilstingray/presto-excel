@@ -14,50 +14,53 @@
 package org.ame.presto.excel;
 
 import com.facebook.presto.common.type.Type;
-import com.facebook.presto.common.type.VarcharType;
 import com.facebook.presto.spi.RecordCursor;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Arrays;
 import java.util.List;
+
+import static com.facebook.presto.common.type.BigintType.BIGINT;
+import static com.facebook.presto.common.type.BooleanType.BOOLEAN;
+import static com.facebook.presto.common.type.DoubleType.DOUBLE;
+import static com.facebook.presto.common.type.VarcharType.createUnboundedVarcharType;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static java.util.Objects.requireNonNull;
 
 public class ExcelRecordCursor
         implements RecordCursor
 {
-    private final File file;
     private final List<ExcelColumnHandle> columnHandles;
+    private final Long totalBytes;
     private List<String> fields;
-    private Workbook workbook;
-    private Sheet sheet;
-    private Iterator<Row> iterator;
-    private boolean hasNext;
-    private static final DataFormatter DATA_FORMATTER = new DataFormatter();
+    private final List<List<Object>> dataValues;
+    private Integer currentIndex;
 
-    public ExcelRecordCursor(File file, List<ExcelColumnHandle> columnHandles)
+    public ExcelRecordCursor(List<ExcelColumnHandle> columnHandles, List<List<Object>> dataValues)
     {
-        this.file = file;
-        this.columnHandles = columnHandles;
-        this.workbook = null;
-        this.sheet = null;
-        this.iterator = null;
-        this.hasNext = false;
+        requireNonNull(columnHandles, "columnHandles is null");
+        requireNonNull(dataValues, "dataValues is null");
+
+        this.columnHandles = ImmutableList.copyOf(columnHandles);
+        this.dataValues = ImmutableList.copyOf(dataValues);
+        long inputLength = 0;
+        for (List<Object> objList : dataValues) {
+            for (Object obj : objList) {
+                inputLength += String.valueOf(obj).length();
+            }
+        }
+        totalBytes = inputLength;
+        this.currentIndex = 0;
     }
 
     @Override
     public long getCompletedBytes()
     {
-        return 0;
+        return totalBytes;
     }
 
     @Override
@@ -69,94 +72,87 @@ public class ExcelRecordCursor
     @Override
     public Type getType(int field)
     {
-        return VarcharType.VARCHAR;
+        return columnHandles.get(field).getColumnType();
     }
 
     @Override
     public boolean advanceNextPosition()
     {
-        if (sheet == null) {
-            try {
-                // Populate incomplete columns with nulls
-                fields = new ArrayList<>();
-                InputStream inputStream = new FileInputStream(file);
-                workbook = WorkbookFactory.create(inputStream);
-                // TODO: support multiple sheets
-                sheet = workbook.getSheetAt(0);
-                iterator = sheet.rowIterator();
-                // skip header
-                iterator.next();
+        List<Object> currentVals = null;
+        // skip empty rows
+        while (currentVals == null || currentVals.size() == 0) {
+            if (currentIndex == dataValues.size()) {
+                return false;
             }
-            catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            currentVals = dataValues.get(currentIndex++);
         }
-        try {
-            // TODO: skip empty rows in the middle
-            hasNext = iterator.hasNext();
-            if (hasNext) {
-                Row row = iterator.next();
-                fields = new ArrayList<>();
-                for (int i = 0; i < columnHandles.size(); i++) {
-                    int position = columnHandles.get(i).getOrdinalPosition();
-                    fields.add(DATA_FORMATTER.formatCellValue(row.getCell(position)));
-                }
+        // populate incomplete columns with null
+        String[] allFields = new String[columnHandles.size()];
+        for (int i = 0; i < columnHandles.size(); i++) {
+            int ordinalPosition = columnHandles.get(i).getOrdinalPosition();
+            if (currentVals.size() > ordinalPosition) {
+                allFields[i] = String.valueOf(currentVals.get(ordinalPosition));
             }
         }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return hasNext;
+        fields = Arrays.asList(allFields);
+        return true;
     }
 
     @Override
     public boolean getBoolean(int field)
     {
-        return false;
+        checkFieldType(field, BOOLEAN);
+        return Boolean.parseBoolean(getFieldValue(field));
     }
 
     @Override
     public long getLong(int field)
     {
-        return 0;
+        checkFieldType(field, BIGINT);
+        return Long.parseLong(getFieldValue(field));
     }
 
     @Override
     public double getDouble(int field)
     {
-        return 0;
+        checkFieldType(field, DOUBLE);
+        return Double.parseDouble(getFieldValue(field));
     }
 
     @Override
     public Slice getSlice(int field)
     {
+        checkFieldType(field, createUnboundedVarcharType());
         return Slices.utf8Slice(fields.get(field));
     }
 
     @Override
     public Object getObject(int field)
     {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean isNull(int field)
     {
-        return false;
+        checkArgument(field < columnHandles.size(), "Invalid field index");
+        return Strings.isNullOrEmpty(getFieldValue(field));
     }
 
     @Override
     public void close()
     {
-        if (workbook != null) {
-            try {
-                sheet = null;
-                iterator = null;
-                workbook.close();
-            }
-            catch (IOException e) {
-//                throw new RuntimeException(e);
-            }
-        }
+    }
+
+    private void checkFieldType(int field, Type expected)
+    {
+        Type actual = getType(field);
+        checkArgument(actual.equals(expected), "Expected field %s to be type %s but is %s", field, expected, actual);
+    }
+
+    private String getFieldValue(int field)
+    {
+        checkState(fields != null, "Cursor has not been advanced yet");
+        return fields.get(field);
     }
 }

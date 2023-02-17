@@ -20,31 +20,49 @@ import com.facebook.presto.spi.schedule.NodeSelectionStrategy;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
-import java.io.File;
 import java.util.List;
 
 import static com.facebook.presto.spi.schedule.NodeSelectionStrategy.NO_PREFERENCE;
+import static java.util.Objects.requireNonNull;
 
 public class ExcelSplit
         implements ConnectorSplit
 {
-    private File filePath;
-    private final HostAddress address;
+    private final String schemaName;
+    private final String tableName;
+    private final List<List<Object>> values;
+    private final List<HostAddress> addresses;
 
     @JsonCreator
     public ExcelSplit(
-            @JsonProperty("filePath") File filePath,
-            @JsonProperty("address") HostAddress address)
+            @JsonProperty("schemaName") String schemaName,
+            @JsonProperty("tableName") String tableName,
+            @JsonProperty("values") List<List<Object>> values)
     {
-        this.filePath = filePath;
-        this.address = address;
+        this.schemaName = requireNonNull(schemaName, "schemaName is null");
+        this.tableName = requireNonNull(tableName, "tableName is null");
+        this.values = requireNonNull(values, "values is null");
+        this.addresses = ImmutableList.of();
     }
 
     @JsonProperty
-    public File getFilePath()
+    public String getSchemaName()
     {
-        return filePath;
+        return schemaName;
+    }
+
+    @JsonProperty
+    public String getTableName()
+    {
+        return tableName;
+    }
+
+    @JsonProperty
+    public List<List<Object>> getValues()
+    {
+        return values;
     }
 
     @Override
@@ -56,12 +74,16 @@ public class ExcelSplit
     @Override
     public List<HostAddress> getPreferredNodes(NodeProvider nodeProvider)
     {
-        return ImmutableList.of(address);
+        return addresses;
     }
 
     @Override
     public Object getInfo()
     {
-        return this;
+        return ImmutableMap.builder()
+                .put("schemaName", schemaName)
+                .put("tableName", tableName)
+                .put("values", values)
+                .build();
     }
 }
