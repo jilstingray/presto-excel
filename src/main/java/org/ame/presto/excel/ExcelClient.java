@@ -17,6 +17,8 @@ import com.facebook.airlift.json.JsonCodec;
 import com.facebook.presto.common.type.VarcharType;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import com.jcraft.jsch.JSchException;
+import org.ame.presto.excel.protocol.SFTPSession;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -26,8 +28,11 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -37,25 +42,31 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
 public class ExcelClient
 {
     private final ExcelConfig config;
+    private final String protocol;
+    private final SFTPSession sftpSession;
     private static final DataFormatter DATA_FORMATTER = new DataFormatter();
 
     @Inject
     public ExcelClient(ExcelConfig config, JsonCodec<Map<String, List<ExcelTable>>> catalogCodec)
+            throws JSchException
     {
         requireNonNull(config, "config is null");
         requireNonNull(catalogCodec, "catalogCodec is null");
         this.config = config;
-    }
-
-    public ExcelConfig getConfig()
-    {
-        return config;
+        if (ProtocolType.SFTP.toString().equals(config.getProtocol())) {
+            this.sftpSession = new SFTPSession(config.getHost(), config.getPort(), config.getUsername(), config.getPassword());
+        }
+        else {
+            this.sftpSession = null;
+        }
+        this.protocol = config.getProtocol().toLowerCase(Locale.ENGLISH);
     }
 
     public Optional<ExcelTable> getTable(String schemaName, String tableName)
@@ -84,8 +95,8 @@ public class ExcelClient
     private List<List<Object>> readAllValues(String schemaName, String tableName)
     {
         try {
-            Path path = config.getBaseDir().toPath().resolve(schemaName).resolve(tableName + ".xlsx");
-            Workbook workbook = WorkbookFactory.create(path.toFile());
+            InputStream inputStream = getInputStream(schemaName, tableName);
+            Workbook workbook = WorkbookFactory.create(inputStream);
             // TODO: support multiple sheets
             Sheet sheet = workbook.getSheetAt(0);
             List<List<Object>> values = new ArrayList<>();
@@ -114,6 +125,90 @@ public class ExcelClient
             return values;
         }
         catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public List<String> getSchemaNames()
+    {
+        String path = config.getPath();
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        try {
+            if (ProtocolType.FILE.toString().equals(protocol)) {
+                return Files.list(new File(path).toPath())
+                        .filter(Files::isDirectory)
+                        .map(p -> p.getFileName().toString())
+                        .collect(Collectors.toList());
+            }
+            else if (sftpSession != null) {
+                List<String> schemas = sftpSession.getSchemas(path);
+                return ImmutableList.copyOf(schemas);
+            }
+            else {
+                throw new RuntimeException("Unsupported protocol: " + protocol);
+            }
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public List<String> getTableNames(String schemaName)
+    {
+        String path = config.getPath();
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        try {
+            if (ProtocolType.FILE.toString().equals(protocol)) {
+                return Files.list(new File(path).toPath().resolve(schemaName))
+                        .filter(p -> p.getFileName().toString().endsWith(".xlsx"))
+                        .map(p -> p.getFileName().toString().replace(".xlsx", ""))
+                        .collect(Collectors.toList());
+            }
+            else if (sftpSession != null) {
+                List<String> tables = sftpSession.getTables(path, schemaName);
+                return ImmutableList.copyOf(tables);
+            }
+            else {
+                throw new RuntimeException("Unsupported protocol: " + protocol);
+            }
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private InputStream getInputStream(String schemaName, String tableName)
+    {
+        String path = config.getPath();
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        try {
+            if (ProtocolType.FILE.toString().equals(protocol)) {
+                Path filePath = new File(path).toPath().resolve(schemaName).resolve(tableName + ".xlsx");
+                return filePath.toUri().toURL().openStream();
+            }
+            else if (sftpSession != null) {
+                return sftpSession.getInputStream(path + "/" + schemaName + "/" + tableName + ".xlsx");
+            }
+            else {
+                throw new RuntimeException("Unsupported protocol: " + protocol);
+            }
+        }
+        catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

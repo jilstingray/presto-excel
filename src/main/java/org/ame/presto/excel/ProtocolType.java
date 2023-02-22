@@ -13,16 +13,16 @@
  */
 package org.ame.presto.excel;
 
-import com.facebook.presto.spi.Plugin;
-import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.google.common.collect.ImmutableList;
+import java.util.Locale;
 
-public class ExcelPlugin
-        implements Plugin
+public enum ProtocolType
 {
+    SFTP,
+    FILE;
+
     @Override
-    public Iterable<ConnectorFactory> getConnectorFactories()
+    public String toString()
     {
-        return ImmutableList.of(new ExcelConnectorFactory());
+        return super.toString().toLowerCase(Locale.ENGLISH);
     }
 }

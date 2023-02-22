@@ -30,14 +30,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
@@ -56,27 +52,17 @@ public class ExcelMetadata
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
-        try {
-            return Files.list(excelClient.getConfig().getBaseDir().toPath())
-                    .filter(Files::isDirectory)
-                    .map(path -> path.getFileName().toString())
-                    .collect(Collectors.toList());
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return excelClient.getSchemaNames();
     }
 
     @Override
     public ExcelTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName)
     {
         requireNonNull(tableName, "tableName is null");
-        Path dir = excelClient.getConfig().getBaseDir().toPath().resolve(tableName.getSchemaName());
-        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+        if (!excelClient.getSchemaNames().contains(tableName.getSchemaName())) {
             return null;
         }
-        Path file = dir.resolve(tableName.getTableName() + ".xlsx");
-        if (!Files.exists(file)) {
+        if (!excelClient.getTableNames(tableName.getSchemaName()).contains(tableName.getTableName())) {
             return null;
         }
         return new ExcelTableHandle(tableName.getSchemaName(), tableName.getTableName());
@@ -116,10 +102,7 @@ public class ExcelMetadata
             return Optional.empty();
         }
         Optional<ExcelTable> table = excelClient.getTable(schemaTableName.getSchemaName(), schemaTableName.getTableName());
-        if (table.isPresent()) {
-            return Optional.of(new ConnectorTableMetadata(schemaTableName, table.get().getColumnsMetadata()));
-        }
-        return Optional.empty();
+        return table.map(excelTable -> new ConnectorTableMetadata(schemaTableName, excelTable.getColumnsMetadata()));
     }
 
     @Override
@@ -152,9 +135,7 @@ public class ExcelMetadata
         for (SchemaTableName tableName : listTables(session, Optional.of(prefix.getSchemaName()))) {
             Optional<ConnectorTableMetadata> tableMetadata = getTableMetadata(session, tableName);
             // table can disappear during listing operation
-            if (tableMetadata.isPresent()) {
-                columns.put(tableName, tableMetadata.get().getColumns());
-            }
+            tableMetadata.ifPresent(connectorTableMetadata -> columns.put(tableName, connectorTableMetadata.getColumns()));
         }
         return columns.build();
     }
@@ -179,14 +160,8 @@ public class ExcelMetadata
 
     private List<SchemaTableName> listTables(String schemaName)
     {
-        try {
-            return Files.list(excelClient.getConfig().getBaseDir().toPath().resolve(schemaName))
-                    .map(path -> path.getFileName().toString().replaceAll("\\.xlsx$", ""))
-                    .map(tableName -> new SchemaTableName(schemaName, tableName))
-                    .collect(toImmutableList());
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return excelClient.getTableNames(schemaName).stream()
+                .map(tableName -> new SchemaTableName(schemaName, tableName))
+                .collect(toImmutableList());
     }
 }
