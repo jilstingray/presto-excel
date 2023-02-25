@@ -17,7 +17,7 @@ import com.facebook.airlift.json.JsonCodec;
 import com.facebook.presto.common.type.VarcharType;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-import com.jcraft.jsch.JSchException;
+import org.ame.presto.excel.protocol.ISession;
 import org.ame.presto.excel.protocol.SFTPSession;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -55,18 +55,12 @@ public class ExcelClient
 
     @Inject
     public ExcelClient(ExcelConfig config, JsonCodec<Map<String, List<ExcelTable>>> catalogCodec)
-            throws JSchException
     {
         requireNonNull(config, "config is null");
         requireNonNull(catalogCodec, "catalogCodec is null");
         this.config = config;
-        if (ProtocolType.SFTP.toString().equals(config.getProtocol())) {
-            this.sftpSession = new SFTPSession(config.getHost(), config.getPort(), config.getUsername(), config.getPassword());
-        }
-        else {
-            this.sftpSession = null;
-        }
         this.protocol = config.getProtocol().toLowerCase(Locale.ENGLISH);
+        this.sftpSession = (SFTPSession) getSession();
     }
 
     public Optional<ExcelTable> getTable(String schemaName, String tableName)
@@ -104,14 +98,14 @@ public class ExcelClient
                 List<Object> value = new ArrayList<>();
                 for (int i = 0; i < row.getLastCellNum(); i++) {
                     Cell cell = row.getCell(i);
-                    if (cell.equals(CellType.NUMERIC)) {
+                    if (cell.getCellType().equals(CellType.NUMERIC)) {
                         if (DateUtil.isCellDateFormatted(cell)) {
                             SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                             value.add(format.format(cell.getDateCellValue()));
                         }
                         else {
                             // avoid scientific notation
-                            BigDecimal bigDecimal = new BigDecimal(cell.getNumericCellValue());
+                            BigDecimal bigDecimal = BigDecimal.valueOf(cell.getNumericCellValue());
                             value.add(bigDecimal.toPlainString());
                         }
                     }
@@ -121,6 +115,7 @@ public class ExcelClient
                 }
                 values.add(value);
             }
+            inputStream.close();
             workbook.close();
             return values;
         }
@@ -131,7 +126,7 @@ public class ExcelClient
 
     public List<String> getSchemaNames()
     {
-        String path = config.getPath();
+        String path = config.getBase();
         if (!path.startsWith("/")) {
             path = "/" + path;
         }
@@ -160,7 +155,7 @@ public class ExcelClient
 
     public List<String> getTableNames(String schemaName)
     {
-        String path = config.getPath();
+        String path = config.getBase();
         if (!path.startsWith("/")) {
             path = "/" + path;
         }
@@ -189,7 +184,7 @@ public class ExcelClient
 
     private InputStream getInputStream(String schemaName, String tableName)
     {
-        String path = config.getPath();
+        String path = config.getBase();
         if (!path.startsWith("/")) {
             path = "/" + path;
         }
@@ -211,5 +206,18 @@ public class ExcelClient
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private ISession getSession()
+    {
+        if (ProtocolType.SFTP.toString().equals(this.protocol)) {
+            try {
+                return new SFTPSession(config.getHost(), config.getPort(), config.getUsername(), config.getPassword());
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
     }
 }

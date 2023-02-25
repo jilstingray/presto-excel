@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SFTPSession
+        implements ISession
 {
     private static final Integer TIMEOUT = 10000;
     private String host;

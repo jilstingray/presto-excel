@@ -20,7 +20,7 @@ import javax.validation.constraints.NotNull;
 public class ExcelConfig
 {
     private String protocol;
-    private String path;
+    private String base;
     private String username;
     private String password;
     private String host;
@@ -33,9 +33,9 @@ public class ExcelConfig
     }
 
     @NotNull
-    public String getPath()
+    public String getBase()
     {
-        return path;
+        return base;
     }
 
     public String getUsername()
@@ -66,9 +66,9 @@ public class ExcelConfig
     }
 
     @Config("excel.base")
-    public ExcelConfig setPath(String path)
+    public ExcelConfig setBase(String base)
     {
-        this.path = path;
+        this.base = base;
         return this;
     }
 
