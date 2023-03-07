@@ -2,7 +2,7 @@
 
 Based on [presto-localcsv](https://github.com/dongqianwei/presto-localcsv) and [presto-google-sheets](https://github.com/prestodb/presto/tree/master/presto-google-sheets), this connector allows Presto to query data stored in local Excel files.
 
-Currently, the connector supports `select` on Excel 2007+ format files (`*.xlsx`) from local drives/SFTP server.
+Currently, the connector supports `select` on local / SFTP Excel files.
 
 ## Compile
 
@@ -45,5 +45,3 @@ excel.password=xxx
 - [ ] Support HDFS, HTTP Server, etc.
 
 - [ ] Support full capabilities of Excel manipulation (`insert`, `delete`, `update`, `create table`, `drop table`, etc).
-
-- [ ] Support more file formats, not just `*.xlsx`.

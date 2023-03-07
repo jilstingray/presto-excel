@@ -22,6 +22,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.ame.presto.excel.ExcelUtils.isExcelFile;
+
 public class SFTPSession
         implements ISession
 {
@@ -74,8 +76,8 @@ public class SFTPSession
         List<String> tables = new ArrayList<>();
         List<ChannelSftp.LsEntry> entries = channel.ls(path + "/" + schema);
         for (ChannelSftp.LsEntry entry : entries) {
-            if (!entry.getAttrs().isDir() && entry.getFilename().endsWith(".xlsx")) {
-                tables.add(entry.getFilename().replace(".xlsx", ""));
+            if (!entry.getAttrs().isDir() && isExcelFile(entry.getFilename())) {
+                tables.add(entry.getFilename());
             }
         }
         return tables;

@@ -45,6 +45,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static org.ame.presto.excel.ExcelUtils.getPath;
+import static org.ame.presto.excel.ExcelUtils.isExcelFile;
 
 public class ExcelClient
 {
@@ -52,6 +54,7 @@ public class ExcelClient
     private final String protocol;
     private final SFTPSession sftpSession;
     private static final DataFormatter DATA_FORMATTER = new DataFormatter();
+    private static final Integer MAX_ROWS = 99999;
 
     @Inject
     public ExcelClient(ExcelConfig config, JsonCodec<Map<String, List<ExcelTable>>> catalogCodec)
@@ -86,15 +89,19 @@ public class ExcelClient
         return Optional.of(new ExcelTable(tableName, columns.build(), data));
     }
 
+    // TODO: optimize memory usage
     private List<List<Object>> readAllValues(String schemaName, String tableName)
     {
         try {
             InputStream inputStream = getInputStream(schemaName, tableName);
             Workbook workbook = WorkbookFactory.create(inputStream);
-            // TODO: support multiple sheets
             Sheet sheet = workbook.getSheetAt(0);
             List<List<Object>> values = new ArrayList<>();
             for (Row row : sheet) {
+                // FAILSAFE: limit memory usage
+                if (values.size() > MAX_ROWS) {
+                    break;
+                }
                 List<Object> value = new ArrayList<>();
                 for (int i = 0; i < row.getLastCellNum(); i++) {
                     Cell cell = row.getCell(i);
@@ -126,13 +133,7 @@ public class ExcelClient
 
     public List<String> getSchemaNames()
     {
-        String path = config.getBase();
-        if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-        if (path.endsWith("/")) {
-            path = path.substring(0, path.length() - 1);
-        }
+        String path = getPath(config.getBase());
         try {
             if (ProtocolType.FILE.toString().equals(protocol)) {
                 return Files.list(new File(path).toPath())
@@ -155,18 +156,12 @@ public class ExcelClient
 
     public List<String> getTableNames(String schemaName)
     {
-        String path = config.getBase();
-        if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-        if (path.endsWith("/")) {
-            path = path.substring(0, path.length() - 1);
-        }
+        String path = getPath(config.getBase());
         try {
             if (ProtocolType.FILE.toString().equals(protocol)) {
                 return Files.list(new File(path).toPath().resolve(schemaName))
-                        .filter(p -> p.getFileName().toString().endsWith(".xlsx"))
-                        .map(p -> p.getFileName().toString().replace(".xlsx", ""))
+                        .filter(p -> isExcelFile(p.getFileName().toString()))
+                        .map(p -> p.getFileName().toString())
                         .collect(Collectors.toList());
             }
             else if (sftpSession != null) {
@@ -184,20 +179,14 @@ public class ExcelClient
 
     private InputStream getInputStream(String schemaName, String tableName)
     {
-        String path = config.getBase();
-        if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-        if (path.endsWith("/")) {
-            path = path.substring(0, path.length() - 1);
-        }
+        String path = getPath(config.getBase());
         try {
             if (ProtocolType.FILE.toString().equals(protocol)) {
-                Path filePath = new File(path).toPath().resolve(schemaName).resolve(tableName + ".xlsx");
+                Path filePath = new File(path).toPath().resolve(schemaName).resolve(tableName);
                 return filePath.toUri().toURL().openStream();
             }
             else if (sftpSession != null) {
-                return sftpSession.getInputStream(path + "/" + schemaName + "/" + tableName + ".xlsx");
+                return sftpSession.getInputStream(path + "/" + schemaName + "/" + tableName);
             }
             else {
                 throw new RuntimeException("Unsupported protocol: " + protocol);

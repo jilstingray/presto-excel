@@ -13,16 +13,28 @@
  */
 package org.ame.presto.excel;
 
-import com.facebook.presto.spi.Plugin;
-import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.google.common.collect.ImmutableList;
-
-public class ExcelPlugin
-        implements Plugin
+public class ExcelUtils
 {
-    @Override
-    public Iterable<ConnectorFactory> getConnectorFactories()
+    private ExcelUtils()
     {
-        return ImmutableList.of(new ExcelConnectorFactory());
+        throw new IllegalStateException("Utility class");
+    }
+
+    public static boolean isExcelFile(String fileName)
+    {
+        return fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+    }
+
+    public static String getPath(String path)
+    {
+        if (!path.startsWith("/")) {
+            return "/" + path;
+        }
+        else if (path.endsWith("/")) {
+            return path.substring(0, path.length() - 1);
+        }
+        else {
+            return path;
+        }
     }
 }

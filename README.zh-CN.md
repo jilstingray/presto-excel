@@ -2,7 +2,7 @@
 
 Presto Excel 连接器，参考了 [presto-localcsv](https://github.com/dongqianwei/presto-localcsv) 和 [presto-google-sheets](https://github.com/prestodb/presto/tree/master/presto-google-sheets)。
 
-目前支持查询本地/SFTP服务器上的 Excel 2007+（`*.xlsx`）工作表。
+目前支持查询本地/SFTP服务器上的 Excel 工作表。
 
 ## 编译
 
@@ -43,8 +43,6 @@ excel.password=xxx
 - [x] 支持 SFTP。
 
 - [ ] 支持 HDFS、HTTP 等协议。
-
-- [ ] 支持完整的文件操作（`insert`, `delete`, `update`, `create table`, `drop table`, etc）。
 
 - [ ] 支持 `*.xlsx` 以外的更多文件类型。
 
