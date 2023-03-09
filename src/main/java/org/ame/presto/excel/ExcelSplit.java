@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableMap;
 
 import java.util.List;
 
-import static com.facebook.presto.spi.schedule.NodeSelectionStrategy.NO_PREFERENCE;
+import static com.facebook.presto.spi.schedule.NodeSelectionStrategy.SOFT_AFFINITY;
 import static java.util.Objects.requireNonNull;
 
 public class ExcelSplit
@@ -68,7 +68,7 @@ public class ExcelSplit
     @Override
     public NodeSelectionStrategy getNodeSelectionStrategy()
     {
-        return NO_PREFERENCE;
+        return SOFT_AFFINITY;
     }
 
     @Override

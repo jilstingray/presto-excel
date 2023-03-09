@@ -18,6 +18,7 @@ import com.facebook.presto.common.type.VarcharType;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import org.ame.presto.excel.protocol.ISession;
+import org.ame.presto.excel.protocol.ProtocolType;
 import org.ame.presto.excel.protocol.SFTPSession;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -111,9 +112,17 @@ public class ExcelClient
                             value.add(format.format(cell.getDateCellValue()));
                         }
                         else {
-                            // avoid scientific notation
-                            BigDecimal bigDecimal = BigDecimal.valueOf(cell.getNumericCellValue());
-                            value.add(bigDecimal.toPlainString());
+                            // prevent integer from being converted to double
+                            Long longValue = Math.round(cell.getNumericCellValue());
+                            Double doubleValue = cell.getNumericCellValue();
+                            if (Double.parseDouble(longValue + ".0") == doubleValue) {
+                                value.add(longValue.toString());
+                            }
+                            else {
+                                // avoid scientific notation
+                                BigDecimal bigDecimal = BigDecimal.valueOf(cell.getNumericCellValue());
+                                value.add(bigDecimal.toPlainString());
+                            }
                         }
                     }
                     else {
