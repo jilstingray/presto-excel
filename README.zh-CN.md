@@ -42,9 +42,11 @@ excel.password=xxx
 
 - [x] 支持 SFTP。
 
+- [ ] 优化内存占用。
+
 - [ ] 支持 HDFS、HTTP 等协议。
 
-- [ ] 支持 `*.xlsx` 以外的更多文件类型。
+- [ ] 支持完整 SQL 操作（`insert`、`delete`、`update`、`create table`、`drop table` 等）。
 
 
 

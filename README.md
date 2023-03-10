@@ -42,6 +42,8 @@ excel.password=xxx
 
 - [x] Support SFTP.
 
+- [ ] Optimize memory usage.
+
 - [ ] Support HDFS, HTTP Server, etc.
 
 - [ ] Support full capabilities of Excel manipulation (`insert`, `delete`, `update`, `create table`, `drop table`, etc).
