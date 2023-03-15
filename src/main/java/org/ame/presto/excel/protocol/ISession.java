@@ -13,6 +13,19 @@
  */
 package org.ame.presto.excel.protocol;
 
+import java.io.InputStream;
+import java.util.List;
+
 public interface ISession
 {
+    InputStream getInputStream(String schemaName, String tableName)
+            throws Exception;
+
+    List<String> getSchemas()
+            throws Exception;
+
+    List<String> getTables(String schemaName)
+            throws Exception;
+
+    void close();
 }

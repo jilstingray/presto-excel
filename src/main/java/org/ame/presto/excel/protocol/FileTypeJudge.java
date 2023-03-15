@@ -11,11 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package org.ame.presto.excel.protocol;
 
-public class ExcelUtils
+public class FileTypeJudge
 {
-    private ExcelUtils()
+    private FileTypeJudge()
     {
         throw new IllegalStateException("Utility class");
     }
@@ -23,18 +23,5 @@ public class ExcelUtils
     public static boolean isExcelFile(String fileName)
     {
         return fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
-    }
-
-    public static String getPath(String path)
-    {
-        if (!path.startsWith("/")) {
-            return "/" + path;
-        }
-        else if (path.endsWith("/")) {
-            return path.substring(0, path.length() - 1);
-        }
-        else {
-            return path;
-        }
     }
 }

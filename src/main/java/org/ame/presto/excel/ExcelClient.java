@@ -18,8 +18,7 @@ import com.facebook.presto.common.type.VarcharType;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import org.ame.presto.excel.protocol.ISession;
-import org.ame.presto.excel.protocol.ProtocolType;
-import org.ame.presto.excel.protocol.SFTPSession;
+import org.ame.presto.excel.protocol.SessionProvider;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -29,31 +28,24 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
-import static org.ame.presto.excel.ExcelUtils.getPath;
-import static org.ame.presto.excel.ExcelUtils.isExcelFile;
 
 public class ExcelClient
 {
     private final ExcelConfig config;
-    private final String protocol;
-    private final SFTPSession sftpSession;
+    private ISession session;
     private static final DataFormatter DATA_FORMATTER = new DataFormatter();
     private static final Integer MAX_ROWS = 99999;
 
@@ -63,13 +55,17 @@ public class ExcelClient
         requireNonNull(config, "config is null");
         requireNonNull(catalogCodec, "catalogCodec is null");
         this.config = config;
-        this.protocol = config.getProtocol().toLowerCase(Locale.ENGLISH);
-        this.sftpSession = (SFTPSession) getSession();
     }
 
     public Optional<ExcelTable> getTable(String schemaName, String tableName)
     {
-        List<List<Object>> values = readAllValues(schemaName, tableName);
+        List<List<Object>> values;
+        try {
+            values = readAllValues(schemaName, tableName);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         if (values.size() == 0) {
             return Optional.empty();
         }
@@ -92,71 +88,64 @@ public class ExcelClient
 
     // TODO: optimize memory usage
     private List<List<Object>> readAllValues(String schemaName, String tableName)
+            throws Exception
     {
-        try {
-            InputStream inputStream = getInputStream(schemaName, tableName);
-            Workbook workbook = WorkbookFactory.create(inputStream);
-            Sheet sheet = workbook.getSheetAt(0);
-            List<List<Object>> values = new ArrayList<>();
-            for (Row row : sheet) {
-                // FAILSAFE: limit memory usage
-                if (values.size() > MAX_ROWS) {
-                    break;
+        session = new SessionProvider(getSessionInfo()).getSession();
+        InputStream inputStream = session.getInputStream(schemaName, tableName);
+        Workbook workbook = WorkbookFactory.create(inputStream);
+        Sheet sheet = workbook.getSheetAt(0);
+        List<List<Object>> values = new ArrayList<>();
+        for (Row row : sheet) {
+            if (row == null) {
+                continue;
+            }
+            // FAILSAFE: limit memory usage
+            if (values.size() > MAX_ROWS) {
+                break;
+            }
+            List<Object> value = new ArrayList<>();
+            for (Cell cell : row) {
+                if (cell == null) {
+                    continue;
                 }
-                List<Object> value = new ArrayList<>();
-                for (int i = 0; i < row.getLastCellNum(); i++) {
-                    Cell cell = row.getCell(i);
-                    if (cell.getCellType().equals(CellType.NUMERIC)) {
-                        if (DateUtil.isCellDateFormatted(cell)) {
-                            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                            value.add(format.format(cell.getDateCellValue()));
-                        }
-                        else {
-                            // prevent integer from being converted to double
-                            Long longValue = Math.round(cell.getNumericCellValue());
-                            Double doubleValue = cell.getNumericCellValue();
-                            if (Double.parseDouble(longValue + ".0") == doubleValue) {
-                                value.add(longValue.toString());
-                            }
-                            else {
-                                // avoid scientific notation
-                                BigDecimal bigDecimal = BigDecimal.valueOf(cell.getNumericCellValue());
-                                value.add(bigDecimal.toPlainString());
-                            }
-                        }
+                if (cell.getCellType().equals(CellType.NUMERIC)) {
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                        value.add(format.format(cell.getDateCellValue()));
                     }
                     else {
-                        value.add(DATA_FORMATTER.formatCellValue(cell));
+                        // prevent integer from being converted to double
+                        Long longValue = Math.round(cell.getNumericCellValue());
+                        Double doubleValue = cell.getNumericCellValue();
+                        if (Double.parseDouble(longValue + ".0") == doubleValue) {
+                            value.add(longValue.toString());
+                        }
+                        else {
+                            // avoid scientific notation
+                            BigDecimal bigDecimal = BigDecimal.valueOf(cell.getNumericCellValue());
+                            value.add(bigDecimal.toPlainString());
+                        }
                     }
                 }
-                values.add(value);
+                else {
+                    value.add(DATA_FORMATTER.formatCellValue(cell));
+                }
             }
-            inputStream.close();
-            workbook.close();
-            return values;
+            values.add(value);
         }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        workbook.close();
+        inputStream.close();
+        session.close();
+        return values;
     }
 
     public List<String> getSchemaNames()
     {
-        String path = getPath(config.getBase());
         try {
-            if (ProtocolType.FILE.toString().equals(protocol)) {
-                return Files.list(new File(path).toPath())
-                        .filter(Files::isDirectory)
-                        .map(p -> p.getFileName().toString())
-                        .collect(Collectors.toList());
-            }
-            else if (sftpSession != null) {
-                List<String> schemas = sftpSession.getSchemas(path);
-                return ImmutableList.copyOf(schemas);
-            }
-            else {
-                throw new RuntimeException("Unsupported protocol: " + protocol);
-            }
+            session = new SessionProvider(getSessionInfo()).getSession();
+            List<String> schemas = session.getSchemas();
+            session.close();
+            return ImmutableList.copyOf(schemas);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -165,57 +154,26 @@ public class ExcelClient
 
     public List<String> getTableNames(String schemaName)
     {
-        String path = getPath(config.getBase());
         try {
-            if (ProtocolType.FILE.toString().equals(protocol)) {
-                return Files.list(new File(path).toPath().resolve(schemaName))
-                        .filter(p -> isExcelFile(p.getFileName().toString()))
-                        .map(p -> p.getFileName().toString())
-                        .collect(Collectors.toList());
-            }
-            else if (sftpSession != null) {
-                List<String> tables = sftpSession.getTables(path, schemaName);
-                return ImmutableList.copyOf(tables);
-            }
-            else {
-                throw new RuntimeException("Unsupported protocol: " + protocol);
-            }
+            session = new SessionProvider(getSessionInfo()).getSession();
+            List<String> tables = session.getTables(schemaName);
+            session.close();
+            return ImmutableList.copyOf(tables);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private InputStream getInputStream(String schemaName, String tableName)
+    private Map<String, String> getSessionInfo()
     {
-        String path = getPath(config.getBase());
-        try {
-            if (ProtocolType.FILE.toString().equals(protocol)) {
-                Path filePath = new File(path).toPath().resolve(schemaName).resolve(tableName);
-                return filePath.toUri().toURL().openStream();
-            }
-            else if (sftpSession != null) {
-                return sftpSession.getInputStream(path + "/" + schemaName + "/" + tableName);
-            }
-            else {
-                throw new RuntimeException("Unsupported protocol: " + protocol);
-            }
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private ISession getSession()
-    {
-        if (ProtocolType.SFTP.toString().equals(this.protocol)) {
-            try {
-                return new SFTPSession(config.getHost(), config.getPort(), config.getUsername(), config.getPassword());
-            }
-            catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return null;
+        Map<String, String> sessionInfo = new HashMap<>();
+        sessionInfo.put("base", config.getBase());
+        sessionInfo.put("protocol", config.getProtocol());
+        sessionInfo.put("host", config.getHost());
+        sessionInfo.put("port", config.getPort().toString());
+        sessionInfo.put("username", config.getUsername());
+        sessionInfo.put("password", config.getPassword());
+        return sessionInfo;
     }
 }

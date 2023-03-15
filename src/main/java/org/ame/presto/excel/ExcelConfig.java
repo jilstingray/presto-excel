@@ -24,7 +24,7 @@ public class ExcelConfig
     private String username;
     private String password;
     private String host;
-    private int port;
+    private Integer port;
 
     @NotNull
     public String getProtocol()
@@ -53,7 +53,7 @@ public class ExcelConfig
         return host;
     }
 
-    public int getPort()
+    public Integer getPort()
     {
         return port;
     }

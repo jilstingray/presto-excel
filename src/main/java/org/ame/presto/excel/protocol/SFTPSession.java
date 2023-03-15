@@ -15,53 +15,63 @@ package org.ame.presto.excel.protocol;
 
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.SftpException;
+import com.jcraft.jsch.Session;
 
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-import static org.ame.presto.excel.ExcelUtils.isExcelFile;
+import static org.ame.presto.excel.protocol.FileTypeJudge.isExcelFile;
 
 public class SFTPSession
         implements ISession
 {
     private static final Integer TIMEOUT = 10000;
+    private String base;
     private String host;
     private int port;
     private String username;
     private String password;
+    private Session session;
     private ChannelSftp channel;
 
-    public SFTPSession(String host, int port, String username, String password)
-            throws JSchException
+    public SFTPSession(Map<String, String> sessionInfo)
+            throws Exception
     {
-        this.host = host;
-        this.port = port;
-        this.username = username;
-        this.password = password;
-        JSch jsch = new JSch();
-        com.jcraft.jsch.Session session = jsch.getSession(username, host, port);
+        this.base = sessionInfo.get("base");
+        if (base.endsWith("/") || base.endsWith("\\")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        if (!base.startsWith("/") || !base.startsWith("\\")) {
+            base = "/" + base;
+        }
+        this.host = sessionInfo.get("host");
+        this.port = Integer.parseInt(sessionInfo.get("port"));
+        this.username = sessionInfo.get("username");
+        this.password = sessionInfo.get("password");
+        session = new JSch().getSession(username, host, port);
         session.setPassword(password);
         session.setConfig("StrictHostKeyChecking", "no");
         session.connect(TIMEOUT);
         channel = (ChannelSftp) session.openChannel("sftp");
-        channel.connect();
+        channel.connect(TIMEOUT);
     }
 
-    public InputStream getInputStream(String path)
-            throws SftpException
+    @Override
+    public InputStream getInputStream(String schemaName, String tableName)
+            throws Exception
     {
-        InputStream inputStream = channel.get(path);
+        InputStream inputStream = channel.get(base + "/" + schemaName + "/" + tableName);
         return inputStream;
     }
 
-    public List<String> getSchemas(String path)
-            throws SftpException
+    @Override
+    public List<String> getSchemas()
+            throws Exception
     {
         List<String> schemas = new ArrayList<>();
-        List<ChannelSftp.LsEntry> entries = channel.ls(path);
+        List<ChannelSftp.LsEntry> entries = channel.ls(base);
         for (ChannelSftp.LsEntry entry : entries) {
             if (entry.getAttrs().isDir()) {
                 schemas.add(entry.getFilename());
@@ -70,11 +80,12 @@ public class SFTPSession
         return schemas;
     }
 
-    public List<String> getTables(String path, String schema)
-            throws SftpException
+    @Override
+    public List<String> getTables(String schemaName)
+            throws Exception
     {
         List<String> tables = new ArrayList<>();
-        List<ChannelSftp.LsEntry> entries = channel.ls(path + "/" + schema);
+        List<ChannelSftp.LsEntry> entries = channel.ls(base + "/" + schemaName);
         for (ChannelSftp.LsEntry entry : entries) {
             if (!entry.getAttrs().isDir() && isExcelFile(entry.getFilename())) {
                 tables.add(entry.getFilename());
@@ -83,10 +94,14 @@ public class SFTPSession
         return tables;
     }
 
+    @Override
     public void close()
-            throws JSchException
     {
-        channel.disconnect();
-        channel.getSession().disconnect();
+        if (channel != null) {
+            channel.disconnect();
+        }
+        if (session != null) {
+            session.disconnect();
+        }
     }
 }
