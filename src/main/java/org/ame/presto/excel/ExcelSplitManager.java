@@ -31,12 +31,12 @@ import java.util.Optional;
 public class ExcelSplitManager
         implements ConnectorSplitManager
 {
-    private final ExcelClient excelClient;
+    private final ExcelClient client;
 
     @Inject
-    public ExcelSplitManager(ExcelClient excelClient)
+    public ExcelSplitManager(ExcelClient client)
     {
-        this.excelClient = excelClient;
+        this.client = client;
     }
 
     @Override
@@ -47,7 +47,7 @@ public class ExcelSplitManager
             SplitSchedulingContext splitSchedulingContext)
     {
         ExcelTableHandle tableHandle = ((ExcelTableLayoutHandle) layout).getTableHandle();
-        Optional<ExcelTable> table = excelClient.getTable(tableHandle.getSchemaName(), tableHandle.getTableName());
+        Optional<ExcelTable> table = client.getTable(tableHandle.getSchemaName(), tableHandle.getTableName());
 
         // this can happen if table is removed during a query
         if (!table.isPresent()) {
@@ -55,7 +55,7 @@ public class ExcelSplitManager
         }
 
         List<ConnectorSplit> splits = new ArrayList<>();
-        splits.add(new ExcelSplit(tableHandle.getSchemaName(), tableHandle.getTableName(), table.get().getValues()));
+        splits.add(new ExcelSplit(tableHandle.getSchemaName(), tableHandle.getTableName(), client.getSessionInfo()));
         Collections.shuffle(splits);
         return new FixedSplitSource(splits);
     }

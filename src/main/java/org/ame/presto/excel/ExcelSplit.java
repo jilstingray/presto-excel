@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.facebook.presto.spi.schedule.NodeSelectionStrategy.SOFT_AFFINITY;
 import static java.util.Objects.requireNonNull;
@@ -32,18 +33,18 @@ public class ExcelSplit
 {
     private final String schemaName;
     private final String tableName;
-    private final List<List<Object>> values;
+    private final Map<String, String> sessionInfo;
     private final List<HostAddress> addresses;
 
     @JsonCreator
     public ExcelSplit(
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
-            @JsonProperty("values") List<List<Object>> values)
+            @JsonProperty("sessionInfo") Map<String, String> sessionInfo)
     {
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
-        this.values = requireNonNull(values, "values is null");
+        this.sessionInfo = requireNonNull(sessionInfo, "sessionInfo is null");
         this.addresses = ImmutableList.of();
     }
 
@@ -60,9 +61,9 @@ public class ExcelSplit
     }
 
     @JsonProperty
-    public List<List<Object>> getValues()
+    public Map<String, String> getSessionInfo()
     {
-        return values;
+        return sessionInfo;
     }
 
     @Override
@@ -83,7 +84,7 @@ public class ExcelSplit
         return ImmutableMap.builder()
                 .put("schemaName", schemaName)
                 .put("tableName", tableName)
-                .put("values", values)
+                .put("sessionInfo", sessionInfo)
                 .build();
     }
 }

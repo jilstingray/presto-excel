@@ -25,6 +25,8 @@ public class ExcelConfig
     private String password;
     private String host;
     private Integer port;
+    private Integer rowCacheSize;
+    private Integer bufferSize;
 
     @NotNull
     public String getProtocol()
@@ -56,6 +58,16 @@ public class ExcelConfig
     public Integer getPort()
     {
         return port;
+    }
+
+    public Integer getRowCacheSize()
+    {
+        return rowCacheSize;
+    }
+
+    public Integer getBufferSize()
+    {
+        return bufferSize;
     }
 
     @Config("excel.protocol")
@@ -97,6 +109,20 @@ public class ExcelConfig
     public ExcelConfig setPort(int port)
     {
         this.port = port;
+        return this;
+    }
+
+    @Config("excel.xlsx-row-cache-size")
+    public ExcelConfig setRowCacheSize(int rowCacheSize)
+    {
+        this.rowCacheSize = rowCacheSize;
+        return this;
+    }
+
+    @Config("excel.xlsx-buffer-size")
+    public ExcelConfig setBufferSize(int bufferSize)
+    {
+        this.bufferSize = bufferSize;
         return this;
     }
 }

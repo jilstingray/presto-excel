@@ -11,18 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel.protocol;
+package org.ame.presto.excel;
 
-import java.util.Locale;
-
-public enum ProtocolType
+public class FileTypeJudge
 {
-    SFTP,
-    FILE;
-
-    @Override
-    public String toString()
+    private FileTypeJudge()
     {
-        return super.toString().toLowerCase(Locale.ENGLISH);
+        throw new IllegalStateException("Utility class");
+    }
+
+    public static boolean isExcelFile(String fileName)
+    {
+        return fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+    }
+
+    public static boolean isXlsxFile(String fileName)
+    {
+        return fileName.endsWith(".xlsx");
     }
 }

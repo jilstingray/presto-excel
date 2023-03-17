@@ -11,17 +11,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel.protocol;
+package org.ame.presto.excel.session;
 
-public class FileTypeJudge
+import java.io.InputStream;
+import java.util.List;
+
+public interface ISession
 {
-    private FileTypeJudge()
-    {
-        throw new IllegalStateException("Utility class");
-    }
+    InputStream getInputStream(String schemaName, String tableName)
+            throws Exception;
 
-    public static boolean isExcelFile(String fileName)
-    {
-        return fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
-    }
+    List<String> getSchemas()
+            throws Exception;
+
+    List<String> getTables(String schemaName)
+            throws Exception;
+
+    void close();
 }

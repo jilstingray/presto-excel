@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel.protocol;
+package org.ame.presto.excel.session;
 
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.ame.presto.excel.protocol.FileTypeJudge.isExcelFile;
+import static org.ame.presto.excel.FileTypeJudge.isExcelFile;
 
 public class SFTPSession
         implements ISession

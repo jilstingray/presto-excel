@@ -27,13 +27,11 @@ import static java.util.Objects.requireNonNull;
 public class ExcelTable
 {
     private final List<ColumnMetadata> columnsMetadata;
-    private final List<List<Object>> values;
 
     @JsonCreator
     public ExcelTable(
             @JsonProperty("name") String name,
-            @JsonProperty("columns") List<ExcelColumn> columns,
-            @JsonProperty("values") List<List<Object>> values)
+            @JsonProperty("columns") List<ExcelColumn> columns)
     {
         checkArgument(!isNullOrEmpty(name), "name is null or is empty");
         requireNonNull(columns, "columns is null");
@@ -43,7 +41,6 @@ public class ExcelTable
             columnsMetadataBuilder.add(new ColumnMetadata(column.getName(), column.getType()));
         }
         this.columnsMetadata = columnsMetadataBuilder.build();
-        this.values = values;
     }
 
     @JsonProperty
@@ -60,12 +57,6 @@ public class ExcelTable
             columnsBuilder.add(new ExcelColumn(columnMetadata.getName(), columnMetadata.getType()));
         }
         return columnsBuilder.build();
-    }
-
-    @JsonProperty
-    public List<List<Object>> getValues()
-    {
-        return values;
     }
 
     public List<ColumnMetadata> getColumnsMetadata()
