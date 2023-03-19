@@ -15,13 +15,30 @@ package org.ame.presto.excel;
 
 import com.facebook.presto.common.type.Type;
 import com.facebook.presto.spi.RecordCursor;
+import com.facebook.presto.spi.SchemaTableName;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.monitorjbl.xlsx.StreamingReader;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import org.ame.presto.excel.session.ISession;
+import org.ame.presto.excel.session.SessionProvider;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static com.facebook.presto.common.type.BigintType.BIGINT;
 import static com.facebook.presto.common.type.BooleanType.BOOLEAN;
@@ -30,31 +47,42 @@ import static com.facebook.presto.common.type.VarcharType.createUnboundedVarchar
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
+import static org.ame.presto.excel.FileTypeJudge.isXlsxFile;
 
 public class ExcelRecordCursor
         implements RecordCursor
 {
     private final List<ExcelColumnHandle> columnHandles;
+    private Integer rowCacheSize;
+    private Integer bufferSize;
     private final Long totalBytes;
     private List<String> fields;
-    private final List<List<Object>> dataValues;
-    private Integer currentIndex;
+    private final ISession session;
+    private InputStream inputStream;
+    private Workbook workbook;
+    private Sheet sheet;
+    private Iterator<Row> iterator;
 
-    public ExcelRecordCursor(List<ExcelColumnHandle> columnHandles, List<List<Object>> dataValues)
+    public ExcelRecordCursor(List<ExcelColumnHandle> columnHandles, SchemaTableName schemaTableName, Map<String, String> sessionInfo)
+            throws Exception
     {
-        requireNonNull(columnHandles, "columnHandles is null");
-        requireNonNull(dataValues, "dataValues is null");
-
-        this.columnHandles = ImmutableList.copyOf(columnHandles);
-        this.dataValues = ImmutableList.copyOf(dataValues);
-        long inputLength = 0;
-        for (List<Object> objList : dataValues) {
-            for (Object obj : objList) {
-                inputLength += String.valueOf(obj).length();
-            }
+        this.columnHandles = ImmutableList.copyOf(requireNonNull(columnHandles, "columnHandles is null"));
+        rowCacheSize = Integer.parseInt(sessionInfo.get("rowCacheSize"));
+        bufferSize = Integer.parseInt(sessionInfo.get("bufferSize"));
+        session = new SessionProvider(sessionInfo).getSession();
+        inputStream = session.getInputStream(schemaTableName.getSchemaName(), schemaTableName.getTableName());
+        totalBytes = (long) inputStream.available();
+        // use streaming reader for xlsx files
+        if (isXlsxFile(schemaTableName.getTableName())) {
+            workbook = StreamingReader.builder().rowCacheSize(rowCacheSize).bufferSize(bufferSize).open(inputStream);
         }
-        totalBytes = inputLength;
-        this.currentIndex = 0;
+        else {
+            workbook = WorkbookFactory.create(inputStream);
+        }
+        sheet = workbook.getSheetAt(0);
+        iterator = sheet.rowIterator();
+        // Assume the first row is always the header
+        iterator.next();
     }
 
     @Override
@@ -78,20 +106,45 @@ public class ExcelRecordCursor
     @Override
     public boolean advanceNextPosition()
     {
-        List<Object> currentVals = null;
-        // skip empty rows
-        while (currentVals == null || currentVals.size() == 0) {
-            if (currentIndex == dataValues.size()) {
-                return false;
-            }
-            currentVals = dataValues.get(currentIndex++);
+        if (!iterator.hasNext()) {
+            return false;
         }
-        // populate incomplete columns with null
+        Row row = iterator.next();
+        // skip empty rows
+        if (row == null) {
+            return true;
+        }
         String[] allFields = new String[columnHandles.size()];
         for (int i = 0; i < columnHandles.size(); i++) {
             int ordinalPosition = columnHandles.get(i).getOrdinalPosition();
-            if (currentVals.size() > ordinalPosition) {
-                allFields[i] = String.valueOf(currentVals.get(ordinalPosition));
+            Cell cell = row.getCell(ordinalPosition);
+            // populate incomplete columns with null
+            if (cell == null || cell.getStringCellValue().isEmpty()) {
+                allFields[i] = null;
+                continue;
+            }
+            // convert cell to string
+            if (cell.getCellType().equals(CellType.NUMERIC)) {
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    allFields[i] = format.format(cell.getDateCellValue());
+                }
+                else {
+                    // prevent integer from being converted to double
+                    Long longValue = Math.round(cell.getNumericCellValue());
+                    Double doubleValue = cell.getNumericCellValue();
+                    if (Double.parseDouble(longValue + ".0") == doubleValue) {
+                        allFields[i] = longValue.toString();
+                    }
+                    else {
+                        // avoid scientific notation
+                        BigDecimal bigDecimal = BigDecimal.valueOf(cell.getNumericCellValue());
+                        allFields[i] = bigDecimal.toPlainString();
+                    }
+                }
+            }
+            else {
+                allFields[i] = cell.getStringCellValue();
             }
         }
         fields = Arrays.asList(allFields);
@@ -142,6 +195,14 @@ public class ExcelRecordCursor
     @Override
     public void close()
     {
+        try {
+            workbook.close();
+            inputStream.close();
+            session.close();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void checkFieldType(int field, Type expected)
