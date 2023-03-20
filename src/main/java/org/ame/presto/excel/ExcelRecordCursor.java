@@ -127,7 +127,7 @@ public class ExcelRecordCursor
                 case STRING:
                     allFields[i] = cell.getStringCellValue();
                     break;
-                case NUMERIC: //数字
+                case NUMERIC:
                     if (DateUtil.isCellDateFormatted(cell)) {
                         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                         allFields[i] = format.format(cell.getDateCellValue());

@@ -1,18 +1,16 @@
 # Presto Excel Connector 
 
-Based on [presto-localcsv](https://github.com/dongqianwei/presto-localcsv) and [presto-google-sheets](https://github.com/prestodb/presto/tree/master/presto-google-sheets), this connector allows Presto to query data stored in local Excel files.
+This connector allows Presto to query data stored in stored Excel files from local or SFTP storage. 
 
-Currently, the connector supports `select` on local / SFTP Excel files.
+Currently, the connector supports `select` on the first sheets of `.xls`, `.xlsx` files.
 
 ## Compile
 
-Download the source code of Presto from [GitHub](https://github.com/prestodb/presto/), copy `presto-excel` into it, and add the following line to `pom.xml` under `presto-root` module:
+Download the source code of Presto from [GitHub](https://github.com/prestodb/presto/), copy `presto-excel` into it, and add the following line to `pom.xml` under the root module:
 
 ```xml
 <module>presto-excel</module>
 ```
-
-Build Presto.
 
 ## Configuration
 
@@ -38,12 +36,15 @@ excel.username=xxx
 excel.password=xxx
 ```
 
+Excel Connector use [Excel Streaming Reader](https://github.com/monitorjbl/excel-streaming-reader) to load super large `.xlsx` files. `rowCacheSize` and `bufferSize` can be adjusted in the configuration file, and the default values are 100 and 4096.
+
+```
+excel.xlsx-row-cache-size=100   # number of rows to keep in memory
+excel.xlsx-buffer-size=4096     # buffer size to use when reading InputStream to file
+```
+
 ## TODO
 
-- [x] Support SFTP.
-
-- [ ] Optimize memory usage.
+- [ ] Support multiple sheets.
 
 - [ ] Support HDFS, HTTP Server, etc.
-
-- [ ] Support full capabilities of Excel manipulation (`insert`, `delete`, `update`, `create table`, `drop table`, etc).
