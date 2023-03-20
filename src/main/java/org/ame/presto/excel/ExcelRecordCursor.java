@@ -24,7 +24,6 @@ import io.airlift.slice.Slices;
 import org.ame.presto.excel.session.ISession;
 import org.ame.presto.excel.session.SessionProvider;
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -119,32 +118,45 @@ public class ExcelRecordCursor
             int ordinalPosition = columnHandles.get(i).getOrdinalPosition();
             Cell cell = row.getCell(ordinalPosition);
             // populate incomplete columns with null
-            if (cell == null || cell.getStringCellValue().isEmpty()) {
+            if (cell == null) {
                 allFields[i] = null;
                 continue;
             }
             // convert cell to string
-            if (cell.getCellType().equals(CellType.NUMERIC)) {
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                    allFields[i] = format.format(cell.getDateCellValue());
-                }
-                else {
-                    // prevent integer from being converted to double
-                    Long longValue = Math.round(cell.getNumericCellValue());
-                    Double doubleValue = cell.getNumericCellValue();
-                    if (Double.parseDouble(longValue + ".0") == doubleValue) {
-                        allFields[i] = longValue.toString();
+            switch (cell.getCellType()) {
+                case STRING:
+                    allFields[i] = cell.getStringCellValue();
+                    break;
+                case NUMERIC: //数字
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                        allFields[i] = format.format(cell.getDateCellValue());
                     }
                     else {
-                        // avoid scientific notation
-                        BigDecimal bigDecimal = BigDecimal.valueOf(cell.getNumericCellValue());
-                        allFields[i] = bigDecimal.toPlainString();
+                        // prevent integer from being converted to double
+                        Long longValue = Math.round(cell.getNumericCellValue());
+                        Double doubleValue = cell.getNumericCellValue();
+                        if (Double.parseDouble(longValue + ".0") == doubleValue) {
+                            allFields[i] = longValue.toString();
+                        }
+                        else {
+                            // avoid scientific notation
+                            BigDecimal bigDecimal = BigDecimal.valueOf(cell.getNumericCellValue());
+                            allFields[i] = bigDecimal.toPlainString();
+                        }
                     }
-                }
-            }
-            else {
-                allFields[i] = cell.getStringCellValue();
+                    break;
+                case BOOLEAN:
+                    allFields[i] = Boolean.toString(cell.getBooleanCellValue());
+                    break;
+                case BLANK:
+                    allFields[i] = null;
+                    break;
+                case FORMULA:
+                    allFields[i] = cell.getCellFormula();
+                    break;
+                default:
+                    break;
             }
         }
         fields = Arrays.asList(allFields);
