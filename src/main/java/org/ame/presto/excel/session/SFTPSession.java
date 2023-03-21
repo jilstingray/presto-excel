@@ -43,9 +43,6 @@ public class SFTPSession
         if (base.endsWith("/") || base.endsWith("\\")) {
             base = base.substring(0, base.length() - 1);
         }
-        if (!base.startsWith("/") || !base.startsWith("\\")) {
-            base = "/" + base;
-        }
         this.host = sessionInfo.get("host");
         this.port = Integer.parseInt(sessionInfo.get("port"));
         this.username = sessionInfo.get("username");

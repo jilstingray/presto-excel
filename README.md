@@ -1,6 +1,6 @@
-# Presto Excel Connector 
+# Presto Excel Connector
 
-This connector allows Presto to query data stored in stored Excel files from local or SFTP storage. 
+This connector allows Presto to query data stored in stored Excel files from local or SFTP storage.
 
 Currently, the connector supports `select` on the first sheets of `.xls`, `.xlsx` files.
 
@@ -9,6 +9,7 @@ Currently, the connector supports `select` on the first sheets of `.xls`, `.xlsx
 Download the source code of Presto from [GitHub](https://github.com/prestodb/presto/), copy `presto-excel` into it, and add the following line to `pom.xml` under the root module:
 
 ```xml
+
 <module>presto-excel</module>
 ```
 
@@ -36,12 +37,18 @@ excel.username=xxx
 excel.password=xxx
 ```
 
-Excel Connector use [Excel Streaming Reader](https://github.com/monitorjbl/excel-streaming-reader) to load super large `.xlsx` files. `rowCacheSize` and `bufferSize` can be adjusted in the configuration file, and the default values are 100 and 4096.
+Excel Connector use [Excel Streaming Reader](https://github.com/monitorjbl/excel-streaming-reader) to load super large `.xlsx` files. `rowCacheSize` and `bufferSize` can be
+adjusted in the configuration file, and the default values are 100 and 4096.
 
 ```
 excel.xlsx-row-cache-size=100   # number of rows to keep in memory
 excel.xlsx-buffer-size=4096     # buffer size to use when reading InputStream to file
 ```
+
+## Known issues
+
+Presto does not support uppercase table names (see [this issue](https://github.com/prestodb/presto/issues/2863)). The connector can not recognize the file if its name contains
+uppercase letters either.
 
 ## TODO
 
