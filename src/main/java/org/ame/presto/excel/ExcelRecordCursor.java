@@ -81,7 +81,9 @@ public class ExcelRecordCursor
         sheet = workbook.getSheetAt(0);
         iterator = sheet.rowIterator();
         // Assume the first row is always the header
-        iterator.next();
+        if (iterator.hasNext()) {
+            iterator.next();
+        }
     }
 
     @Override
