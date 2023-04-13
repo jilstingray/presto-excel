@@ -37,6 +37,17 @@ public class LocalSession
         }
     }
 
+    private static List<File> listFiles(File dir)
+    {
+        if ((dir != null) && dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                return ImmutableList.copyOf(files);
+            }
+        }
+        return ImmutableList.of();
+    }
+
     @Override
     public InputStream getInputStream(String schemaName, String tableName)
             throws IOException
@@ -71,16 +82,5 @@ public class LocalSession
     @Override
     public void close()
     {
-    }
-
-    private static List<File> listFiles(File dir)
-    {
-        if ((dir != null) && dir.isDirectory()) {
-            File[] files = dir.listFiles();
-            if (files != null) {
-                return ImmutableList.copyOf(files);
-            }
-        }
-        return ImmutableList.of();
     }
 }

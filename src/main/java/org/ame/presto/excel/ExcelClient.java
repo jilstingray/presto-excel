@@ -44,9 +44,8 @@ public class ExcelClient
 {
     private final Logger logger = Logger.get(ExcelClient.class);
     private final ExcelConfig config;
-    private ISession session;
-    private Integer rowCacheSize = 100;
-    private Integer bufferSize = 4096;
+    private static Integer rowCacheSize = 100;
+    private static Integer bufferSize = 4096;
 
     @Inject
     public ExcelClient(ExcelConfig config, JsonCodec<Map<String, List<ExcelTable>>> catalogCodec)
@@ -67,8 +66,9 @@ public class ExcelClient
         ImmutableList.Builder<ExcelColumn> columns = ImmutableList.builder();
         // Assume the first row is always the header
         List<Object> header = new ArrayList<>();
+        Set<String> columnNames = new HashSet<>();
         try {
-            session = new SessionProvider(getSessionInfo()).getSession();
+            ISession session = getSession();
             InputStream inputStream = session.getInputStream(schemaName, tableName);
             Workbook workbook;
             // use streaming reader for xlsx files
@@ -93,10 +93,9 @@ public class ExcelClient
             session.close();
         }
         catch (Exception e) {
-            logger.warn("Error while reading excel file: " + e.getMessage());
+            logger.warn(e, "Error while reading excel file %s", tableName);
             return Optional.empty();
         }
-        Set<String> columnNames = new HashSet<>();
         for (int i = 0; i < header.size(); i++) {
             String columnName = header.get(i).toString().toLowerCase(Locale.ENGLISH);
             // when empty or repeated column header, adding a placeholder column name
@@ -112,7 +111,7 @@ public class ExcelClient
     public List<String> getSchemaNames()
     {
         try {
-            session = new SessionProvider(getSessionInfo()).getSession();
+            ISession session = getSession();
             List<String> schemas = session.getSchemas();
             session.close();
             return ImmutableList.copyOf(schemas);
@@ -125,7 +124,7 @@ public class ExcelClient
     public List<String> getTableNames(String schemaName)
     {
         try {
-            session = new SessionProvider(getSessionInfo()).getSession();
+            ISession session = getSession();
             List<String> tables = session.getTables(schemaName);
             session.close();
             return ImmutableList.copyOf(tables);
@@ -135,7 +134,7 @@ public class ExcelClient
         }
     }
 
-    public Map<String, String> getSessionInfo()
+    public ISession getSession()
     {
         Map<String, String> sessionInfo = new HashMap<>();
         sessionInfo.put("base", config.getBase());
@@ -146,6 +145,16 @@ public class ExcelClient
         sessionInfo.put("password", config.getPassword());
         sessionInfo.put("rowCacheSize", rowCacheSize.toString());
         sessionInfo.put("bufferSize", bufferSize.toString());
-        return sessionInfo;
+        return new SessionProvider(sessionInfo).getSession();
+    }
+
+    public Integer getRowCacheSize()
+    {
+        return rowCacheSize;
+    }
+
+    public Integer getBufferSize()
+    {
+        return bufferSize;
     }
 }

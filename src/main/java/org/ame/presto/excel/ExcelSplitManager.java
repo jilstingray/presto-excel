@@ -55,7 +55,7 @@ public class ExcelSplitManager
         }
 
         List<ConnectorSplit> splits = new ArrayList<>();
-        splits.add(new ExcelSplit(tableHandle.getSchemaName(), tableHandle.getTableName(), client.getSessionInfo()));
+        splits.add(new ExcelSplit(tableHandle.getSchemaName(), tableHandle.getTableName()));
         Collections.shuffle(splits);
         return new FixedSplitSource(splits);
     }

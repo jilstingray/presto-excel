@@ -28,13 +28,9 @@ public class SFTPSession
         implements ISession
 {
     private static final Integer TIMEOUT = 10000;
+    private final Session session;
+    private final ChannelSftp channel;
     private String base;
-    private String host;
-    private int port;
-    private String username;
-    private String password;
-    private Session session;
-    private ChannelSftp channel;
 
     public SFTPSession(Map<String, String> sessionInfo)
             throws Exception
@@ -43,10 +39,10 @@ public class SFTPSession
         if (base.endsWith("/") || base.endsWith("\\")) {
             base = base.substring(0, base.length() - 1);
         }
-        this.host = sessionInfo.get("host");
-        this.port = Integer.parseInt(sessionInfo.get("port"));
-        this.username = sessionInfo.get("username");
-        this.password = sessionInfo.get("password");
+        String host = sessionInfo.get("host");
+        int port = Integer.parseInt(sessionInfo.get("port"));
+        String username = sessionInfo.get("username");
+        String password = sessionInfo.get("password");
         session = new JSch().getSession(username, host, port);
         session.setPassword(password);
         session.setConfig("StrictHostKeyChecking", "no");
@@ -59,8 +55,7 @@ public class SFTPSession
     public InputStream getInputStream(String schemaName, String tableName)
             throws Exception
     {
-        InputStream inputStream = channel.get(base + "/" + schemaName + "/" + tableName);
-        return inputStream;
+        return channel.get(base + "/" + schemaName + "/" + tableName);
     }
 
     @Override

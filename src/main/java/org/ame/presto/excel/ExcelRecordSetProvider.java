@@ -20,6 +20,8 @@ import com.facebook.presto.spi.RecordSet;
 import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
+import javax.inject.Inject;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,12 +30,20 @@ import static java.util.Objects.requireNonNull;
 public class ExcelRecordSetProvider
         implements ConnectorRecordSetProvider
 {
+    private final ExcelClient excelClient;
+
+    @Inject
+    public ExcelRecordSetProvider(ExcelClient excelClient)
+    {
+        this.excelClient = requireNonNull(excelClient, "excelClient is null");
+    }
+
     @Override
     public RecordSet getRecordSet(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorSplit split, List<? extends ColumnHandle> columns)
     {
         requireNonNull(split, "split is null");
         ExcelSplit excelSplit = (ExcelSplit) split;
         List<ExcelColumnHandle> handles = columns.stream().map(c -> (ExcelColumnHandle) c).collect(Collectors.toList());
-        return new ExcelRecordSet(excelSplit, handles);
+        return new ExcelRecordSet(excelSplit, handles, excelClient.getSession(), excelClient.getRowCacheSize(), excelClient.getBufferSize());
     }
 }

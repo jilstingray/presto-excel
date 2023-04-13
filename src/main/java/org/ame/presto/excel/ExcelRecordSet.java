@@ -18,9 +18,9 @@ import com.facebook.presto.common.type.Type;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordSet;
 import com.facebook.presto.spi.SchemaTableName;
+import org.ame.presto.excel.session.ISession;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -32,15 +32,20 @@ public class ExcelRecordSet
     private final List<ExcelColumnHandle> columnHandles;
     private final List<Type> columnTypes;
     private final SchemaTableName schemaTableName;
-    private final Map<String, String> sessionInfo;
+    private ISession session;
+    private Integer rowCacheSize;
 
-    public ExcelRecordSet(ExcelSplit split, List<ExcelColumnHandle> columnHandles)
+    private Integer bufferSize;
+
+    public ExcelRecordSet(ExcelSplit split, List<ExcelColumnHandle> columnHandles, ISession session, Integer rowCacheSize, Integer bufferSize)
     {
         this.columnHandles = requireNonNull(columnHandles, "columnHandles is null");
         this.columnTypes = columnHandles.stream().map(ExcelColumnHandle::getColumnType).collect(Collectors.toList());
         requireNonNull(split, "split is null");
         this.schemaTableName = new SchemaTableName(split.getSchemaName(), split.getTableName());
-        this.sessionInfo = split.getSessionInfo();
+        this.session = session;
+        this.rowCacheSize = rowCacheSize;
+        this.bufferSize = bufferSize;
     }
 
     @Override
@@ -53,7 +58,7 @@ public class ExcelRecordSet
     public RecordCursor cursor()
     {
         try {
-            return new ExcelRecordCursor(columnHandles, schemaTableName, sessionInfo);
+            return new ExcelRecordCursor(columnHandles, schemaTableName, session, rowCacheSize, bufferSize);
         }
         catch (Exception e) {
             logger.error(e, "Error creating ExcelRecordCursor");

@@ -22,7 +22,6 @@ import com.monitorjbl.xlsx.StreamingReader;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import org.ame.presto.excel.session.ISession;
-import org.ame.presto.excel.session.SessionProvider;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
@@ -37,7 +36,6 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import static com.facebook.presto.common.type.BigintType.BIGINT;
 import static com.facebook.presto.common.type.BooleanType.BOOLEAN;
@@ -52,24 +50,25 @@ public class ExcelRecordCursor
         implements RecordCursor
 {
     private final List<ExcelColumnHandle> columnHandles;
-    private Integer rowCacheSize;
-    private Integer bufferSize;
     private final Long totalBytes;
-    private List<String> fields;
     private final ISession session;
+    private List<String> fields;
     private InputStream inputStream;
     private Workbook workbook;
     private Sheet sheet;
     private Iterator<Row> iterator;
 
-    public ExcelRecordCursor(List<ExcelColumnHandle> columnHandles, SchemaTableName schemaTableName, Map<String, String> sessionInfo)
+    public ExcelRecordCursor(
+            List<ExcelColumnHandle> columnHandles,
+            SchemaTableName schemaTableName,
+            ISession session,
+            Integer rowCacheSize,
+            Integer bufferSize)
             throws Exception
     {
         this.columnHandles = ImmutableList.copyOf(requireNonNull(columnHandles, "columnHandles is null"));
-        rowCacheSize = Integer.parseInt(sessionInfo.get("rowCacheSize"));
-        bufferSize = Integer.parseInt(sessionInfo.get("bufferSize"));
-        session = new SessionProvider(sessionInfo).getSession();
-        inputStream = session.getInputStream(schemaTableName.getSchemaName(), schemaTableName.getTableName());
+        this.session = session;
+        inputStream = this.session.getInputStream(schemaTableName.getSchemaName(), schemaTableName.getTableName());
         totalBytes = (long) inputStream.available();
         // use streaming reader for xlsx files
         if (isXlsxFile(schemaTableName.getTableName())) {
