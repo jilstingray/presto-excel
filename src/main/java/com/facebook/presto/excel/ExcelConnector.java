@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package com.facebook.presto.excel;
 
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
@@ -20,8 +20,6 @@ import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.transaction.IsolationLevel;
 import com.google.inject.Inject;
-
-import static org.ame.presto.excel.ExcelTransactionHandle.INSTANCE;
 
 public class ExcelConnector
         implements Connector
@@ -44,7 +42,7 @@ public class ExcelConnector
     @Override
     public ConnectorTransactionHandle beginTransaction(IsolationLevel isolationLevel, boolean readOnly)
     {
-        return INSTANCE;
+        return ExcelTransactionHandle.INSTANCE;
     }
 
     @Override

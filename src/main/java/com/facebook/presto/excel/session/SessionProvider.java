@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel.session;
+package com.facebook.presto.excel.session;
 
 import java.util.Locale;
 import java.util.Map;
@@ -28,6 +28,14 @@ public class SessionProvider
         if (ProtocolType.SFTP.toString().equals(sessionInfo.get("protocol").toLowerCase(Locale.ENGLISH))) {
             try {
                 this.session = new SFTPSession(sessionInfo);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        if (ProtocolType.HDFS.toString().equals(sessionInfo.get("protocol").toLowerCase(Locale.ENGLISH))) {
+            try {
+                this.session = new HDFSSession(sessionInfo);
             }
             catch (Exception e) {
                 throw new RuntimeException(e);

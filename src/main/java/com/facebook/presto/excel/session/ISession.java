@@ -11,18 +11,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel.session;
+package com.facebook.presto.excel.session;
 
-import java.util.Locale;
+import java.io.InputStream;
+import java.util.List;
 
-public enum ProtocolType
+public interface ISession
 {
-    SFTP,
-    FILE;
+    InputStream getInputStream(String schemaName, String tableName)
+            throws Exception;
 
-    @Override
-    public String toString()
-    {
-        return super.toString().toLowerCase(Locale.ENGLISH);
-    }
+    List<String> getSchemas()
+            throws Exception;
+
+    List<String> getTables(String schemaName)
+            throws Exception;
+
+    void close();
 }

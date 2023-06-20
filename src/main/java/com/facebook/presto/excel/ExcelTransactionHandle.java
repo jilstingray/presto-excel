@@ -11,18 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package com.facebook.presto.excel;
 
-import com.facebook.presto.spi.Plugin;
-import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.google.common.collect.ImmutableList;
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
-public class ExcelPlugin
-        implements Plugin
+public enum ExcelTransactionHandle
+        implements ConnectorTransactionHandle
 {
-    @Override
-    public Iterable<ConnectorFactory> getConnectorFactories()
-    {
-        return ImmutableList.of(new ExcelConnectorFactory());
-    }
+    INSTANCE
 }

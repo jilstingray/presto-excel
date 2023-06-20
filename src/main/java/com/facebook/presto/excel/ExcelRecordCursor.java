@@ -11,9 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package com.facebook.presto.excel;
 
 import com.facebook.presto.common.type.Type;
+import com.facebook.presto.excel.session.ISession;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.SchemaTableName;
 import com.google.common.base.Strings;
@@ -21,7 +22,6 @@ import com.google.common.collect.ImmutableList;
 import com.monitorjbl.xlsx.StreamingReader;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import org.ame.presto.excel.session.ISession;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
@@ -44,7 +44,6 @@ import static com.facebook.presto.common.type.VarcharType.createUnboundedVarchar
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
-import static org.ame.presto.excel.FileTypeJudge.isXlsxFile;
 
 public class ExcelRecordCursor
         implements RecordCursor
@@ -71,7 +70,7 @@ public class ExcelRecordCursor
         inputStream = this.session.getInputStream(schemaTableName.getSchemaName(), schemaTableName.getTableName());
         totalBytes = (long) inputStream.available();
         // use streaming reader for xlsx files
-        if (isXlsxFile(schemaTableName.getTableName())) {
+        if (FileTypeJudge.isXlsxFile(schemaTableName.getTableName())) {
             workbook = StreamingReader.builder().rowCacheSize(rowCacheSize).bufferSize(bufferSize).open(inputStream);
         }
         else {

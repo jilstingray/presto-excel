@@ -11,22 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package com.facebook.presto.excel;
 
-public class FileTypeJudge
+import com.facebook.presto.spi.Plugin;
+import com.facebook.presto.spi.connector.ConnectorFactory;
+import com.google.common.collect.ImmutableList;
+
+public class ExcelPlugin
+        implements Plugin
 {
-    private FileTypeJudge()
+    @Override
+    public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        throw new IllegalStateException("Utility class");
-    }
-
-    public static boolean isExcelFile(String fileName)
-    {
-        return fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
-    }
-
-    public static boolean isXlsxFile(String fileName)
-    {
-        return fileName.endsWith(".xlsx");
+        return ImmutableList.of(new ExcelConnectorFactory());
     }
 }

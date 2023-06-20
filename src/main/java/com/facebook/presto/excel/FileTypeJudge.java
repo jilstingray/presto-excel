@@ -11,12 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package com.facebook.presto.excel;
 
-import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-
-public enum ExcelTransactionHandle
-        implements ConnectorTransactionHandle
+public class FileTypeJudge
 {
-    INSTANCE
+    private FileTypeJudge()
+    {
+        throw new IllegalStateException("Utility class");
+    }
+
+    public static boolean isExcelFile(String fileName)
+    {
+        return fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+    }
+
+    public static boolean isXlsxFile(String fileName)
+    {
+        return fileName.endsWith(".xlsx");
+    }
 }

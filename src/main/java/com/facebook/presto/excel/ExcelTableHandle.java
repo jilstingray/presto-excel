@@ -11,49 +11,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package com.facebook.presto.excel;
 
-import com.facebook.presto.common.type.Type;
+import com.facebook.presto.spi.ConnectorTableHandle;
+import com.facebook.presto.spi.SchemaTableName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
-import static java.util.Objects.requireNonNull;
-
-public class ExcelColumn
+public class ExcelTableHandle
+        implements ConnectorTableHandle
 {
-    private final String name;
-    private final Type type;
+    private final String schemaName;
+    private final String tableName;
+    private final SchemaTableName schemaTableName;
 
     @JsonCreator
-    public ExcelColumn(
-            @JsonProperty("name") String name,
-            @JsonProperty("type") Type type)
+    public ExcelTableHandle(
+            @JsonProperty("schemaName") String schemaName,
+            @JsonProperty("tableName") String tableName)
     {
-        checkArgument(!isNullOrEmpty(name), "name is null or is empty");
-        this.name = name;
-        this.type = requireNonNull(type, "type is null");
+        this.schemaName = schemaName;
+        this.tableName = tableName;
+        this.schemaTableName = new SchemaTableName(schemaName, tableName);
     }
 
     @JsonProperty
-    public String getName()
+    public String getSchemaName()
     {
-        return name;
+        return schemaName;
     }
 
     @JsonProperty
-    public Type getType()
+    public String getTableName()
     {
-        return type;
+        return tableName;
+    }
+
+    public SchemaTableName getSchemaTableName()
+    {
+        return schemaTableName;
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(name, type);
+        return Objects.hash(schemaName, tableName);
     }
 
     @Override
@@ -66,14 +70,13 @@ public class ExcelColumn
             return false;
         }
 
-        ExcelColumn that = (ExcelColumn) o;
-        return Objects.equals(this.name, that.name) &&
-                Objects.equals(this.type, that.type);
+        ExcelTableHandle that = (ExcelTableHandle) o;
+        return Objects.equals(this.schemaTableName, that.schemaTableName);
     }
 
     @Override
     public String toString()
     {
-        return name + ":" + type;
+        return schemaTableName.toString();
     }
 }

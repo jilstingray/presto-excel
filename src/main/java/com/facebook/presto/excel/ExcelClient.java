@@ -11,16 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package com.facebook.presto.excel;
 
 import com.facebook.airlift.json.JsonCodec;
 import com.facebook.airlift.log.Logger;
 import com.facebook.presto.common.type.VarcharType;
+import com.facebook.presto.excel.session.ISession;
+import com.facebook.presto.excel.session.SessionProvider;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.monitorjbl.xlsx.StreamingReader;
-import org.ame.presto.excel.session.ISession;
-import org.ame.presto.excel.session.SessionProvider;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -38,7 +38,6 @@ import java.util.Optional;
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
-import static org.ame.presto.excel.FileTypeJudge.isXlsxFile;
 
 public class ExcelClient
 {
@@ -72,7 +71,7 @@ public class ExcelClient
             InputStream inputStream = session.getInputStream(schemaName, tableName);
             Workbook workbook;
             // use streaming reader for xlsx files
-            if (isXlsxFile(tableName)) {
+            if (FileTypeJudge.isXlsxFile(tableName)) {
                 workbook = StreamingReader.builder().bufferSize(bufferSize).open(inputStream);
             }
             else {

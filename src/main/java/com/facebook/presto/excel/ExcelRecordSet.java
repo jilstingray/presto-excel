@@ -11,14 +11,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.ame.presto.excel;
+package com.facebook.presto.excel;
 
 import com.facebook.airlift.log.Logger;
 import com.facebook.presto.common.type.Type;
+import com.facebook.presto.excel.session.ISession;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordSet;
 import com.facebook.presto.spi.SchemaTableName;
-import org.ame.presto.excel.session.ISession;
 
 import java.util.List;
 import java.util.stream.Collectors;

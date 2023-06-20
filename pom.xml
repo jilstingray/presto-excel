@@ -9,7 +9,6 @@
         <version>0.282-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.ame.presto</groupId>
     <artifactId>presto-excel</artifactId>
     <description>Presto - Excel Connector</description>
     <packaging>presto-plugin</packaging>
@@ -92,6 +91,11 @@
         <dependency>
             <groupId>com.facebook.airlift</groupId>
             <artifactId>configuration</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.facebook.presto.hadoop</groupId>
+            <artifactId>hadoop-apache2</artifactId>
         </dependency>
 
         <!-- Excel Plugin -->
